@@ -4,7 +4,7 @@
 
 <h1>🤖 超星考试自动答题助手</h1>
 
-[![版本](https://img.shields.io/badge/版本-V2.1.0-brightgreen)](https://github.com/SJYssr/CxExam_automatic_answering/releases)
+[![版本](https://img.shields.io/badge/版本-V1.0.0-brightgreen)](https://github.com/SJYssr/CxExam_automatic_answering/releases)
 [![许可证](https://img.shields.io/badge/许可证-GPL--3.0-blue)](https://github.com/SJYssr/CxExam_automatic_answering/blob/main/LICENSE)
 [![状态](https://img.shields.io/badge/状态-可用-success)](https://github.com/SJYssr/CxExam_automatic_answering)
 [![贡献](https://img.shields.io/badge/欢迎-贡献-orange)](https://github.com/SJYssr/CxExam_automatic_answering/issues)
