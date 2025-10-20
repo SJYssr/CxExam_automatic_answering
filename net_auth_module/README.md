@@ -1,77 +1,111 @@
-# 获取计算机MAC地址的Node.js应用
+# 网络认证模块 (Net Auth Module)
 
-这是一个简单的Node.js应用程序，用于获取当前计算机的网络接口MAC地址。
+这是一个基于Node.js的网络认证系统，用于软件授权和版本管理。系统通过MAC地址识别设备，并与远程服务器进行认证交互。
 
 ## 功能特性
 
-- 获取所有网络接口的MAC地址
-- 识别主要网络接口的MAC地址
-- 支持Windows、macOS和Linux系统
-- 提供详细和简化两种版本
+- **设备识别**: 自动获取计算机MAC地址进行设备绑定
+- **用户认证**: 通过软件ID、单码和版本号进行用户身份验证
+- **授权管理**: 获取和验证软件授权状态
+- **版本控制**: 自动检查软件版本更新
+- **缓存机制**: 本地缓存授权信息，提高认证效率
+- **错误处理**: 完善的错误代码和异常处理机制
+
+## 系统架构
+
+```
+net_auth_module/
+├── main.js              # 主程序入口，处理认证流程
+├── config.js            # 配置文件，存储单码等常量
+├── package.json         # 项目配置和依赖管理
+└── model/               # 核心功能模块
+    ├── cache.js         # 缓存管理模块
+    ├── error_code.js    # 错误代码定义
+    ├── get_authorized.js # 授权获取模块
+    ├── get_mac.js       # MAC地址获取模块
+    ├── get_time.js      # 时间获取模块
+    ├── get_version.js   # 版本管理模块
+    └── login.js         # 登录认证模块
+```
 
 ## 使用方法
 
-### 方法1：运行完整版本（推荐）
+### 方法1：直接运行认证流程
 ```bash
-node index.js
+node main.js
 ```
 
-### 方法2：运行简化版本
-```bash
-node simple-mac.js
-```
-
-### 方法3：作为模块使用
+### 方法2：作为模块集成使用
 ```javascript
-const macUtils = require('./index.js');
+const { executeLoginProcess } = require('./main.js');
 
-// 获取所有MAC地址
-const allMacs = macUtils.getMacAddresses();
-console.log('所有MAC地址:', allMacs);
+// 执行认证流程
+async function authenticate() {
+    const result = await executeLoginProcess();
+    
+    if (result.success) {
+        console.log('认证成功');
+        console.log('到期时间:', result.expireTime);
+        console.log('授权信息:', result.authorized);
+    } else {
+        console.log('认证失败:', result.error);
+    }
+}
 
-// 获取主要MAC地址
-const primaryMac = macUtils.getPrimaryMacAddress();
-console.log('主要MAC地址:', primaryMac);
+authenticate();
 ```
 
-## 文件说明
+## 认证流程
 
-- `index.js` - 完整版本，提供详细的网络接口信息
-- `simple-mac.js` - 简化版本，直接输出MAC地址
-- `package.json` - 项目配置文件
+1. **设备识别**: 获取本地计算机MAC地址
+2. **用户登录**: 使用软件ID、单码、版本号和MAC地址进行认证
+3. **授权验证**: 获取软件授权状态和到期时间
+4. **版本检查**: 对比本地版本与远程版本，提示更新
+5. **缓存存储**: 将授权信息保存到本地缓存
+
+## 配置说明
+
+### 配置文件 (config.js)
+```javascript
+// 单码配置
+const Card = 'scx4W8X4T2O8U9N0';
+```
+
+### 主程序常量 (main.js)
+```javascript
+const Softid = '6G6G7V8C2T9L9U8A';    // 软件ID
+const Version = '1.0';               // 版本号
+const LocalVersion = 'v1.0.0';       // 本地版本号
+```
 
 ## 输出示例
 
-运行 `node index.js` 会输出类似以下内容：
-
+成功认证的输出：
 ```
-=== 计算机MAC地址信息 ===
-
-所有网络接口的MAC地址：
-
-接口名称: Ethernet0
-  1. IP地址: 192.168.1.100
-     MAC地址: 00:1B:44:11:3A:B7
-     地址类型: IPv4
-     内部接口: 否
-
-=== 主要MAC地址 ===
-主要MAC地址: 00:1B:44:11:3A:B7
-
-=== 系统信息 ===
-操作系统平台: win32
-操作系统版本: 10.0.19044
-主机名: DESKTOP-ABC123
+登录成功
+到期时间: 2024-12-31 23:59:59
+当前已是最新版本
+授权成功
 ```
 
-## 注意事项
-
-1. 程序需要网络权限来读取网络接口信息
-2. 在某些系统上，虚拟网络接口（如VPN、虚拟机）也会被列出
-3. MAC地址格式可能因操作系统而异
-4. 程序会自动过滤掉内部（loopback）接口
+失败认证的输出：
+```
+登录失败: 认证信息无效
+```
 
 ## 依赖
 
-- Node.js 10.0 或更高版本
-- 内置 `os` 模块（无需额外安装）
+- Node.js 12.0 或更高版本
+- 内置模块: `os`, `fs`, `http`
+
+## 注意事项
+
+1. **网络连接**: 需要稳定的网络连接进行远程认证
+2. **MAC地址**: 系统依赖MAC地址进行设备绑定，请确保网络接口正常工作
+3. **配置文件**: 请妥善保管config.js中的单码信息
+4. **版本管理**: 定期检查版本更新以确保功能完整性
+5. **错误处理**: 系统提供详细的错误代码，便于问题排查
+
+## 错误代码参考
+
+系统使用标准化的错误代码机制，具体错误代码定义请参考 `model/error_code.js` 文件。
