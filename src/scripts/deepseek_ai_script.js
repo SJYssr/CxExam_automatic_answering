@@ -1,17 +1,20 @@
-﻿// 超星学习通考试AI辅助填充脚本
-// 功能：获取题目和选项，发送给DeepSeek AI解答，支持快捷键操作
+// 超星学习通考试AI辅助填充脚本 - 前端部分
+// 功能：获取题目和选项，与后端通信获取AI答案，填充答案
 
 (function() {
     'use strict';
 
-    console.log('[AI答题] 脚本开始执行');
+    console.log('[AI答题前端] 脚本开始执行');
+
+    // 后端API配置
+    const BACKEND_API_URL = 'http://localhost:3000';
 
     // =====页面检测逻辑=====
     function isChaoxingExamPage() {
         const hostname = window.location.hostname;
         const pathname = window.location.pathname;
         
-        console.log('[AI答题] 当前页面:', hostname, pathname);
+        console.log('[AI答题前端] 当前页面:', hostname, pathname);
         
         // 检查域名和路径是否符合考试页面
         return (
@@ -26,94 +29,67 @@
 
     // 若不是考试页面，不执行
     if (!isChaoxingExamPage()) {
-        console.log('不是超星学习通考试页面，AI脚本不加载');
+        console.log('不是超星学习通考试页面，AI前端脚本不加载');
         return;
     }
 
-    console.log('[AI答题]页面检测通过，准备加载脚本...');
+    console.log('[AI答题前端]页面检测通过，准备加载脚本...');
 
     // 检查是否已加载，避免重复加载
-    if (window.__deepseekAILoaded) {
-        console.log('AI答题脚本已加载，避免重复执行');
+    if (window.__deepseekAIFrontendLoaded) {
+        console.log('AI答题前端脚本已加载，避免重复执行');
         return;
     }
-    window.__deepseekAILoaded = true;
-
-    // DeepSeek API配置
-    const DEEPSEEK_API_KEY = '';
-    const DEEPSEEK_API_ENDPOINT = 'https://api.deepseek.com/v1/chat/completions';
-    const AI_MODEL = 'deepseek-chat';
+    window.__deepseekAIFrontendLoaded = true;
 
     // 初始化脚本
-    function initScript() {
-        console.log('[AI答题] 脚本初始化中');
+    function initFrontendScript() {
+        console.log('[AI答题前端] 脚本初始化中');
         
         // 监听鼠标中键 - 填充AI答案
         document.addEventListener('mousedown', function(event) {
             if (event.button === 1) { // 鼠标中键
                 event.preventDefault();
-                console.log('[AI答题] 用户按下了鼠标中键');
+                console.log('[AI答题前端] 用户按下了鼠标中键');
                 
                 if (window.aiAnswersData && Object.keys(window.aiAnswersData).length > 0) {
-                    console.log('[AI答题] 检测到AI答案数据，开始填充');
+                    console.log('[AI答题前端] 检测到AI答案数据，开始填充');
                     fillAnswersFromAI(window.aiAnswersData);
                     // 填充后清除数据
                     window.aiAnswersData = null;
                 } else {
-                    console.log('[AI答题] 未检测到AI答案数据，正在自动获取...');
-                    fetchAllAnswers();
+                    console.log('[AI答题前端] 未检测到AI答案数据，正在自动获取...');
+                    fetchAllAnswersFromBackend();
                 }
             }
         });
         
         // 页面加载后自动获取答案
-        console.log('[AI答题] 页面加载完成，开始自动获取AI答案...');
-        fetchAllAnswers();
+        console.log('[AI答题前端] 页面加载完成，开始自动获取AI答案...');
+        fetchAllAnswersFromBackend();
         
-        console.log('[AI答题] 脚本初始化完成');
-        console.log('[AI答题] 使用说明: 鼠标中键=填充答案 | 自动获取答案');
+        console.log('[AI答题前端] 脚本初始化完成');
+        console.log('[AI答题前端] 使用说明: 鼠标中键=填充答案 | 自动获取答案');
     }
 
     // 全局变量用于防止重复执行
     let isProcessing = false;
 
     /**
-     * 获取所有题目的AI答案
+     * 获取所有题目的数据（题目和选项）
      */
-    async function fetchAllAnswers() {
-        console.log('[AI答题] 开始获取AI答案...');
-        
-        // 检查是否正在处理中
-        if (isProcessing) {
-            console.warn('[AI答题] 正在处理中，忽略重复请求');
-            return;
-        }
-        
-        // 设置处理状态
-        isProcessing = true;
-        
-        // 检查API Key
-        if (!DEEPSEEK_API_KEY || DEEPSEEK_API_KEY.trim() === '') {
-            console.error('[AI答题]API Key 未配置');
-            isProcessing = false;
-            return;
-        }
-        
-        console.log('[AI答题]API Key 已配置，开始处理题目...');
-        
-        // 使用局部变量存储答案数据
-        const answersData = {};
+    function getAllQuestionsData() {
+        console.log('[AI答题前端] 开始获取题目数据...');
         
         const questions = document.querySelectorAll('div.questionLi');
         if (questions.length === 0) {
-            console.error('[AI答题] 未找到题目元素 (div.questionLi)');
-            isProcessing = false;
-            return;
+            console.error('[AI答题前端] 未找到题目元素 (div.questionLi)');
+            return [];
         }
         
-        console.log(`[AI答题] 检测到 ${questions.length} 道题目`);
+        console.log(`[AI答题前端] 检测到 ${questions.length} 道题目`);
         
-        const questionPromises = [];  // 存储所有题目请求的Promise
+        const questionsData = [];
         
         questions.forEach((question, index) => {
             const titleElement = question.querySelector('h3.mark_name');
@@ -124,11 +100,7 @@
             const questionTextFull = titleElement.textContent.trim();
             const questionHash = question.dataset.questionId || `q-${index}`;
             
-            let prompt = `你是AI答题助手，分析以下试题，给出最合适的答案。仅返回答案，不要解释(如果解释将会导致返回格式错误)。规则：选择题，请直接给出选项字母（如：A, B, AB, 对, 错）。如果填空题或简答题，请给出简洁的填充内容（如：1，苹果;香蕉，等等），并且不能带有md格式字符。\n\n题目：${questionTextFull}\n`;
-            
-            const options = [];
             let questionType = '未知类型';
-            
             if (questionTextFull.includes('单选题')) {
                 questionType = '单选题';
             } else if (questionTextFull.includes('多选题')) {
@@ -141,6 +113,7 @@
                 questionType = '简答题';
             }
             
+            const options = [];
             const optionDivs = question.querySelectorAll('div.answerBg');
             if (optionDivs.length > 0) {
                 optionDivs.forEach((optionDiv, optIndex) => {
@@ -149,47 +122,94 @@
                     const optionContent = clearfixDiv ? clearfixDiv.textContent : optionDiv.textContent;
                     options.push(`${optionLabel}. ${optionContent.trim()}`);
                 });
-                prompt += `选项：\n${options.join('\n')}\n`;
             }
             
-            prompt += `请根据题目类型和选项，给出最佳答案。答案格式为：\n单选题/多选题：仅字母，如 "A" 或 "AB"\n判断题： "对" 或 "错"\n填空题/简答题： 建议填充内容，如 "1"\n\n你的答案：`;
-            
-            questionPromises.push(
-                fetchDeepSeekAnswer(prompt)
-                    .then(aiResponse => {
-                        answersData[questionHash] = {
-                            answer: aiResponse,
-                            type: questionType
-                        };
-                    })
-                    .catch(error => {
-                        answersData[questionHash] = {
-                            error: true,
-                            message: error.message || '请求失败',
-                            type: questionType
-                        };
-                    })
-            );
+            questionsData.push({
+                questionHash: questionHash,
+                question: questionTextFull,
+                options: options,
+                questionType: questionType
+            });
         });
         
+        console.log(`[AI答题前端] 成功获取 ${questionsData.length} 道题目数据`);
+        return questionsData;
+    }
+
+    /**
+     * 从后端获取所有题目的AI答案
+     */
+    async function fetchAllAnswersFromBackend() {
+        console.log('[AI答题前端] 开始从后端获取AI答案...');
+        
+        // 检查是否正在处理中
+        if (isProcessing) {
+            console.warn('[AI答题前端] 正在处理中，忽略重复请求');
+            return;
+        }
+        
+        // 设置处理状态
+        isProcessing = true;
+        
         try {
-            await Promise.all(questionPromises);
+            // 获取题目数据
+            const questionsData = getAllQuestionsData();
+            if (questionsData.length === 0) {
+                console.error('[AI答题前端] 未获取到题目数据');
+                isProcessing = false;
+                return;
+            }
             
-            console.log('[AI答题] 答案获取完成');
-            console.log('[AI答题] 答案数据统计：', Object.keys(answersData).length, '道题目');
+            console.log(`[AI答题前端] 准备向后端发送 ${questionsData.length} 道题目`);
+            
+            // 向后端发送批量请求
+            const response = await fetch(`${BACKEND_API_URL}/api/get-batch-answers`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ questions: questionsData })
+            });
+            
+            if (!response.ok) {
+                throw new Error(`HTTP错误: ${response.status} ${response.statusText}`);
+            }
+            
+            const result = await response.json();
+            
+            if (result.error) {
+                throw new Error(result.message);
+            }
+            
+            console.log('[AI答题前端] 后端返回答案数据:', result);
+            
+            // 处理返回的答案数据
+            const answersData = {};
+            result.answers.forEach(answer => {
+                if (!answer.error) {
+                    answersData[answer.questionHash] = {
+                        answer: answer.answer,
+                        type: answer.questionType
+                    };
+                } else {
+                    console.warn(`[AI答题前端] 题目 ${answer.questionHash} 获取答案失败:`, answer.message);
+                }
+            });
+            
+            console.log(`[AI答题前端] 成功获取 ${Object.keys(answersData).length} 道题目的答案`);
             
             // 将答案数据存储到全局变量中供填充
             window.aiAnswersData = answersData;
             
             // 答案准备就绪，改变鼠标指针为手形
             document.body.style.cursor = 'pointer';
-
+            
         } catch (error) {
-            console.error('[AI答题] 获取AI答案时发生错误:', error);
+            console.error('[AI答题前端] 从后端获取AI答案时发生错误:', error);
             
             // 获取答案失败，恢复鼠标指针
             document.body.style.cursor = 'default';
-
+            
         } finally {
             // 重置处理状态
             isProcessing = false;
@@ -198,79 +218,20 @@
     }
 
     /**
-     * 向 DeepSeek API 发送请求获取答案
-     */
-    async function fetchDeepSeekAnswer(prompt) {
-        try {
-            const response = await fetch(DEEPSEEK_API_ENDPOINT, {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    "Authorization": `Bearer ${DEEPSEEK_API_KEY}`
-                },
-                body: JSON.stringify({
-                    model: AI_MODEL,
-                    messages: [
-                        { role: "system", content: "你是一个专业的考试辅导AI，请根据题目和选项，直接给出最准确的答案。不要解释，不要说任何多余的话。如果需要，请直接给出选项字母（如：A, B, AB），或者\"对\"、\"错\"，或者填充内容（如：1）。" },
-                        { role: "user", content: prompt }
-                    ],
-                    temperature: 0.1,
-                    max_tokens: 100,
-                    stream: false
-                })
-            });
-            
-            if (!response.ok) {
-                throw new Error(`HTTP错误: ${response.status} ${response.statusText}`);
-            }
-            
-            const data = await response.json();
-            
-            if (data.choices && data.choices.length > 0 && data.choices[0].message && data.choices[0].message.content) {
-                const aiContent = data.choices[0].message.content.trim();
-                const cleanedAnswer = aiContent
-                    .split('\n')[0]
-                    .trim()
-                    .replace(/['""'"'.]/g, '')
-                    .replace(/^\d+\.\s*/, '');
-                
-                return cleanedAnswer;
-            } else if (data.error) {
-                let errorMessage = `API Error: ${data.error.message}`;
-                if (data.error.code === 'invalid_api_key') {
-                    errorMessage += " (API Key 无效，请检查)";
-                } else if (data.error.code === 'insufficient_quota') {
-                    errorMessage += " (额度不足，请充值)";
-                } else if (data.error.code === 'model_not_found') {
-                    errorMessage += " (模型不存在或不可用)";
-                }
-                throw new Error(errorMessage);
-            } else {
-                throw new Error('DeepSeek API 返回未知格式的响应或空响应。');
-            }
-        } catch (error) {
-            if (error.name === 'TypeError' && error.message.includes('fetch')) {
-                throw new Error('网络连接失败，请检查网络连接或稍后再试。');
-            }
-            throw error;
-        }
-    }
-
-    /**
      * 根据AI答案数据填充到页面表单中
      */
     function fillAnswersFromAI(answersData = {}) {
-        console.log('[AI答题] 开始填充AI答案到页面...');
-        console.log('[AI答题] 答案数据包含:', Object.keys(answersData).length, '道题目');
+        console.log('[AI答题前端] 开始填充AI答案到页面...');
+        console.log('[AI答题前端] 答案数据包含:', Object.keys(answersData).length, '道题目');
         
         const questions = document.querySelectorAll('div.questionLi');
         
         if (questions.length === 0) {
-            console.error('[AI答题] 未找到题目元素 (div.questionLi)');
+            console.error('[AI答题前端] 未找到题目元素 (div.questionLi)');
             return;
         }
         
-        console.log(`[AI答题] 检测到 ${questions.length} 道题目，开始填充...`);
+        console.log(`[AI答题前端] 检测到 ${questions.length} 道题目，开始填充...`);
         
         let filledCount = 0;
         
@@ -278,7 +239,7 @@
             const questionHash = question.dataset.questionId || `q-${index}`;
             const answerData = answersData[questionHash];
             
-            if (!answerData || answerData.error) {
+            if (!answerData) {
                 return;
             }
             
@@ -378,13 +339,13 @@
             }
         });
         
-        console.log(`[AI答题] 填充完成！成功填充 ${filledCount} 个项目`);
+        console.log(`[AI答题前端] 填充完成！成功填充 ${filledCount} 个项目`);
 
         // 填充完成后，恢复鼠标指针
         document.body.style.cursor = 'default';
     }
 
     // 立即初始化脚本（不等待DOMContentLoaded）
-    console.log('[AI答题] 调用 initScript()...');
-    initScript();
+    console.log('[AI答题前端] 调用 initFrontendScript()...');
+    initFrontendScript();
 })();
