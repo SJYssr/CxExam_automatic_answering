@@ -7,7 +7,7 @@ const path = require('path');
 class CacheManager {
     constructor() {
         // 缓存文件路径
-        this.cacheFilePath = path.join(__dirname, '..', 'cache', 'authorized_cache.json');
+        this.cacheFilePath = path.join(__dirname, '..', 'cache', 'authorized.json');
         
         // 确保缓存目录存在
         this.ensureCacheDirectory();
