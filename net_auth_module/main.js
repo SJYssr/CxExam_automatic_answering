@@ -16,8 +16,6 @@ const { login } = require('./model/login');
 const { getErrorMessage } = require('./model/error_code');
 const { getExpireTimeWithGlobalVars } = require('./model/get_time');
 const { getVersionName } = require('./model/get_version');
-const { getAuthorized } = require('./model/get_authorized');
-const { saveAuthorizedToCache } = require('./model/cache');
 
 /**
  * 执行登录流程
@@ -48,7 +46,8 @@ async function executeLoginProcess() {
                     loginResult.expireTime = expireTimeResult.expireTime;
                 } else {
                     if (expireTimeResult.errorCode) {
-                        console.log(`错误信息: ${expireTimeResult.errorCode||expireTimeResult.errorCode||expireTimeResult.errorMessage || expireTimeResult.error}`);
+                        const errorMessage = getErrorMessage(expireTimeResult.errorCode);
+                        console.log(`获取到期时间失败: ${errorMessage} (错误码: ${expireTimeResult.errorCode})`);
                     }
                 }
             } catch (error) {
@@ -75,50 +74,21 @@ async function executeLoginProcess() {
                     }
                 } else {
                     if (versionResult.errorCode) {
-                        console.log(`获取版本信息失败: ${versionResult.errorCode||versionResult.errorMessage || versionResult.error}`);
+                        const errorMessage = getErrorMessage(versionResult.errorCode);
+                        console.log(`获取版本信息失败: ${errorMessage} (错误码: ${versionResult.errorCode})`);
                     }
                 }
             } catch (error) {
                 console.log(`检查版本更新时发生异常: ${error.message}`);
             }
             
-            // 登录成功后获取核心数据
-            try {
-                const authorizedResult = await getAuthorized(Softid, Card, loginResult.token);
-                
-                if (authorizedResult.success) {
-                    let authorizedData = '';
-                    
-                    if (authorizedResult.isAuthorized) {
-                        authorizedData = authorizedResult.authorized;
-                        // console.log(`授权: ${authorizedData}`);
-                    } else {
-                        authorizedData = authorizedResult.data;
-                        // console.log(`授权: ${authorizedData}`);
-                    }
-                    
-                    // 将核心数据保存到缓存文件中
-                    const saveResult = saveAuthorizedToCache(authorizedData);
-                    if (saveResult) {
-                        console.log('授权成功');
-                    } else {
-                        console.log('授权失败');
-                    }
-                    
-                    loginResult.authorized = authorizedData;
-                } else {
-                    if (authorizedResult.errorCode) {
-                        console.log(`获取授权失败: ${authorizedResult.errorCode||authorizedResult.errorMessage || authorizedResult.error}`);
-                    }
-                }
-            } catch (error) {
-                console.log(`获取授权时发生异常: ${error.message}`);
-            }
+
             
             return loginResult;
         } else {
             if (loginResult.errorCode) {
-                console.log(`登录失败: ${loginResult.errorCode||loginResult.errorMessage || loginResult.error}`);;
+                const errorMessage = getErrorMessage(loginResult.errorCode);
+                console.log(`登录失败: ${errorMessage} (错误码: ${loginResult.errorCode})`);
             }
             return loginResult;
         }
