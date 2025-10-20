@@ -2,3 +2,5 @@
 /.vs
 /net_auth_module/.idea
 /net_auth_module/cache
+/ai_test/.idea
+/ai_test/backend/node_modules
