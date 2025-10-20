@@ -1,2 +1,4 @@
 /out
 /.vs
+/net_auth_module/.idea
+/net_auth_module/cache
