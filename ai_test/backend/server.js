@@ -175,11 +175,11 @@ app.post('/api/get-batch-answers', async (req, res) => {
 
 // 启动服务器
 app.listen(PORT, () => {
-    console.log(`🚀 AI答题后端服务运行在 http://localhost:${PORT}`);
-    console.log(`📊 健康检查: http://localhost:${PORT}/health`);
+    console.log(`AI答题后端服务运行在 http://localhost:${PORT}`);
+    console.log(`健康检查: http://localhost:${PORT}/health`);
     
     if (!DEEPSEEK_API_KEY) {
-        console.warn('⚠️  警告: DeepSeek API Key未配置，请设置环境变量 DEEPSEEK_API_KEY');
+        console.warn('DeepSeek API Key未配置，请设置环境变量 DEEPSEEK_API_KEY');
     }
 });
 
