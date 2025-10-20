@@ -50,7 +50,7 @@ npm install
 3. 配置环境变量：
 ```bash
 # 复制示例文件
-cp .env .env
+cp .env.example .env
 
 # 编辑.env文件，设置你的DeepSeek API Key
 DEEPSEEK_API_KEY=your_actual_api_key_here
