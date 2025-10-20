@@ -1,0 +1,16 @@
+{
+  "name": "get-mac-address",
+  "version": "1.0.0",
+  "description": "获取当前计算机MAC地址的Node.js应用",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "node index.js"
+  },
+  "dependencies": {
+    "os": "^0.1.2"
+  },
+  "keywords": ["mac", "address", "network", "nodejs"],
+  "author": "",
+  "license": "MIT"
+}
