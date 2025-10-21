@@ -5,3 +5,7 @@
 /ai_test/.idea
 /ai_test/backend/node_modules
 /net_auth_module/node_modules
+ai_test/backend/.env
+ai_test/backend/.env.example
+ai_test/backend/.env.example
+*.example
