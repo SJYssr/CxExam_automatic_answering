@@ -24,7 +24,9 @@ const testCases = {
             'A. 苹果',
             'B. 香蕉',
             'C. 土豆',
-            'D. 西瓜'
+            'D. 西瓜',
+            'E. 橘子',
+            'F. 胡萝卜'
         ],
         questionType: '多选题'
     },
@@ -45,7 +47,7 @@ const testCases = {
     
     // 简答题测试
     shortAnswer: {
-        question: '[简答题] 请简述人工智能的主要应用领域。',
+        question: '[简答题] 微信小程序的主要功能是什么？',
         options: [],
         questionType: '简答题'
     }
