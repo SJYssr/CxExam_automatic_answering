@@ -1,0 +1,27 @@
+1. [单选题] 以下哪个是编程语言？
+A. Python
+B. HTML
+C. CSS
+D. HTTP
+答案：A
+
+2. [多选题] 以下哪些是前端技术？
+A. HTML
+B. CSS
+C. JavaScript
+D. Python
+E. React
+F. Vue
+答案：ABC
+
+3. [判断题] JavaScript只能在浏览器中运行。
+A. 对
+B. 错
+答案：B
+
+4. [填空题] HTML的全称是______。
+答案：HyperText Markup Language
+
+5. [简答题] 请简述JavaScript的特点。
+答案：JavaScript是一种解释型、动态类型、基于原型的编程语言，具有跨平台、轻量级、灵活等特点
+
