@@ -12,3 +12,6 @@ ai_test/backend/.env.example
 /all_test/.idea
 /all_test/ui/logs
 /all_test/ui/node_modules
+/后端/ui/node_modules
+*.log
+/后端/.idea
