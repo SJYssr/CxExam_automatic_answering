@@ -1,0 +1,293 @@
+/* 现代化UI设计 - 注入程序界面 */
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    width: 100vw;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    -webkit-user-select: none;
+    cursor: default;
+    padding: 0;
+    margin: 0;
+    overflow: hidden; /* 隐藏滚动条 */
+}
+
+.container {
+    width: 500px;
+    height: 530px;
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    border-radius: 20px;
+    padding: 30px;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    overflow: hidden; /* 隐藏滚动条 */
+}
+
+.header-title {
+    width: 100%;
+    height: 60px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 12px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 24px;
+    font-weight: 600;
+    color: white;
+    margin-bottom: 30px;
+    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+    letter-spacing: 1px;
+}
+
+.input-group {
+    width: 100%;
+    margin-bottom: 25px;
+}
+
+.input-label {
+    display: block;
+    font-size: 14px;
+    font-weight: 500;
+    color: #555;
+    margin-bottom: 8px;
+    margin-left: 5px;
+}
+
+.input-field {
+    width: 100%;
+    height: 50px;
+    border: 2px solid #e1e5e9;
+    border-radius: 12px;
+    padding: 0 20px;
+    font-size: 16px;
+    background: #f8f9fa;
+    color: #333;
+    outline: none;
+}
+
+.input-field:focus {
+    border-color: #667eea;
+    background: white;
+}
+
+.input-field:disabled {
+    background: #f1f3f4;
+    color: #999;
+    cursor: not-allowed;
+}
+
+/* 密码容器样式 */
+.password-container {
+    position: relative;
+    width: 100%;
+}
+
+.password-input {
+    padding-right: 50px; /* 为小眼睛图标留出空间 */
+}
+
+.password-toggle {
+    position: absolute;
+    right: 15px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: #999;
+    padding: 5px;
+    border-radius: 4px;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.password-toggle:hover {
+    color: #667eea;
+    background: rgba(102, 126, 234, 0.1);
+}
+
+.password-toggle:active {
+    background: rgba(102, 126, 234, 0.2);
+}
+
+/* 密码可见状态下的图标样式 */
+.password-toggle.showing svg {
+    color: #667eea;
+}
+
+/* 默认状态（密码隐藏）：显示带斜线的眼睛 */
+.password-toggle:not(.showing) .password-slash {
+    display: block;
+}
+
+/* 密码可见状态：隐藏斜线 */
+.password-toggle.showing .password-slash {
+    display: none;
+}
+
+/* 路径容器样式 */
+.path-container {
+    position: relative;
+    width: 100%;
+}
+
+.path-input {
+    padding-right: 50px; /* 为选择按钮留出空间 */
+}
+
+.path-select-button {
+    position: absolute;
+    right: 15px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: #999;
+    padding: 5px;
+    border-radius: 4px;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.path-select-button:hover {
+    color: #667eea;
+    background: rgba(102, 126, 234, 0.1);
+}
+
+.path-select-button:active {
+    background: rgba(102, 126, 234, 0.2);
+}
+
+.display-group {
+    width: 100%;
+    margin-bottom: 25px;
+}
+
+.display-label {
+    display: block;
+    font-size: 14px;
+    font-weight: 500;
+    color: #555;
+    margin-bottom: 8px;
+    margin-left: 5px;
+}
+
+.display-content {
+    width: 100%;
+    height: 50px;
+    border: 2px solid #e1e5e9;
+    border-radius: 12px;
+    padding: 0 20px;
+    font-size: 16px;
+    background: #f8f9fa;
+    color: #666;
+    display: flex;
+    align-items: center;
+    transition: all 0.3s ease;
+}
+
+.display-content:disabled {
+    background: #f1f3f4;
+    color: #999;
+}
+
+.footer {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 10px;
+}
+
+.update-section {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.update-label {
+    font-size: 14px;
+    font-weight: 500;
+    color: #555;
+}
+
+.update-content {
+    width: 200px;
+    height: 40px;
+    border: 2px solid #e1e5e9;
+    border-radius: 10px;
+    background: #f8f9fa;
+    display: none;
+}
+
+.inject-button {
+    width: 120px;
+    height: 50px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border: none;
+    border-radius: 12px;
+    color: white;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: not-allowed;
+    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+    opacity: 0.6;
+}
+
+.inject-button:enabled {
+    opacity: 1;
+    cursor: pointer;
+}
+
+.inject-button:enabled:hover {
+    background: linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%);
+}
+
+.inject-button:enabled:active {
+    background: linear-gradient(135deg, #4f62c6 0%, #5d367e 100%);
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+    body {
+        padding: 10px;
+    }
+    
+    .container {
+        padding: 20px;
+        max-width: 100%;
+    }
+    
+    .footer {
+        flex-direction: column;
+        gap: 20px;
+    }
+    
+    .update-section {
+        width: 100%;
+        align-items: center;
+    }
+    
+    .update-content {
+        width: 100%;
+    }
+    
+    .inject-button {
+        width: 100%;
+    }
+}
