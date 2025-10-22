@@ -8,8 +8,7 @@
     "dev": "nodemon backend/server.js",
     "console": "node console_manager.js",
     "injector": "node tiku_injector.js",
-    "test": "node tiku_test.js",
-    "import-tool": "node tools/import_tool.js"
+    "test": "node tiku_test.js"
   },
   "keywords": ["tiku", "local", "exam", "chaoxing"],
   "author": "SJYssr",
