@@ -1,6 +1,6 @@
 ﻿
 #include "pch.h"
-#include "detours/detours.h"  // 导入Detours库，用于函数钩子
+#include "detours.h"  // 导入Detours库，用于函数钩子
 #include "include/capi/cef_browser_capi.h"  // CEF浏览器相关API
 #include "include/internal/cef_types_win.h"  // CEF Windows相关类型定义
 #include "include/capi/cef_client_capi.h"  // CEF客户端相关API
@@ -25,6 +25,7 @@ cef_string_from_ptr_t func_cef_string_from_ptr = nullptr;  // 字符串转换函
 string_t g_crack_script_cached;
 string_t g_notification_script_cached;
 string_t g_deepseek_ai_script_cached;
+string_t g_local_tiku_script_cached;
 string_t g_chaoxing_copy_helper_script_cached;
 
 // 资源加载函数：从DLL资源中加载JavaScript脚本
@@ -225,6 +226,13 @@ void CEF_CALLBACK hook_cef_on_load_end(
         func_cef_string_from_ptr(g_deepseek_ai_script_cached.c_str(), g_deepseek_ai_script_cached.length(), &deepseek_eval);
         frame->execute_java_script(frame, &deepseek_eval, &url, 0);
     }
+
+    // 注入本地题库辅助脚本（如果已加载）
+    if (frame->is_valid(frame) && !g_local_tiku_script_cached.empty()) {
+        cef_string_t local_tiku_eval{};
+        func_cef_string_from_ptr(g_local_tiku_script_cached.c_str(), g_local_tiku_script_cached.length(), &local_tiku_eval);
+        frame->execute_java_script(frame, &local_tiku_eval, &url, 0);
+    }
 }
 
 // 钩子函数：hook_cef_get_load_handler
@@ -333,6 +341,7 @@ DWORD WINAPI ThreadProc(LPVOID lpThreadParameter)
     g_crack_script_cached = LoadScriptFromResource(IDR_CRACK_SCRIPT);
     g_notification_script_cached = LoadScriptFromResource(IDR_NOTIFICATION_SCRIPT);
     g_deepseek_ai_script_cached = LoadScriptFromResource(IDR_DEEPSEEK_AI_SCRIPT);
+    g_local_tiku_script_cached = LoadScriptFromResource(IDR_LOCAL_TIKU_SCRIPT);
         
         if (!g_crack_script_cached.empty()) {
             OutputDebugString(TEXT("[CefHook] Crack script loaded successfully\n"));
@@ -350,6 +359,12 @@ DWORD WINAPI ThreadProc(LPVOID lpThreadParameter)
             OutputDebugString(TEXT("[CefHook] DeepSeek AI script loaded successfully\n"));
         } else {
             OutputDebugString(TEXT("[CefHook] Failed to load DeepSeek AI script\n"));
+        }
+        
+        if (!g_local_tiku_script_cached.empty()) {
+            OutputDebugString(TEXT("[CefHook] Local Tiku script loaded successfully\n"));
+        } else {
+            OutputDebugString(TEXT("[CefHook] Failed to load Local Tiku script\n"));
         }
     }
     

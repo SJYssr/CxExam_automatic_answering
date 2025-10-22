@@ -1,5 +1,9 @@
-find_path(DETOURS_INCLUDE_DIRS "detours/detours.h")
-find_library(DETOURS_LIBRARY detours REQUIRED)
+set(CMAKE_LIBRARY_PATH "E:/CMake/Detours/lib.X86")
+set(CMAKE_INCLUDE_PATH "E:/CMake/Detours/include")
+
+# ��ʽ����·��
+set(DETOURS_INCLUDE_DIRS "E:/CMake/Detours/include")
+set(DETOURS_LIBRARY "E:/CMake/Detours/lib.X86/detours.lib")
 
 file(GLOB SOURCES "*.cpp" "*.c")
 file(GLOB RESOURCES "*.rc")
