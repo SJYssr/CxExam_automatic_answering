@@ -9,4 +9,3 @@ ai_test/backend/.env
 ai_test/backend/.env.example
 ai_test/backend/.env.example
 *.example
-/all_test/.idea
