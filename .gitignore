@@ -9,3 +9,8 @@ ai_test/backend/.env
 ai_test/backend/.env.example
 ai_test/backend/.env.example
 *.example
+/.idea
+/local_tiku_module/node_modules
+/src
+/src
+/src
