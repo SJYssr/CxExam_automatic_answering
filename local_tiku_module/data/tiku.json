@@ -1,0 +1,74 @@
+{
+  "meta": {
+    "name": "本地题库",
+    "description": "用户导入的本地题库",
+    "version": "1.0.0",
+    "totalQuestions": 5,
+    "questionTypeCount": {
+      "单选题": 1,
+      "多选题": 1,
+      "判断题": 1,
+      "填空题": 1,
+      "简答题": 1
+    },
+    "createdAt": "2025-10-22T11:45:50.662Z",
+    "lastUpdated": "2025-10-22T11:45:50.662Z",
+    "fileHash": "c12895c3995239873044b0cbcd5d0556"
+  },
+  "questions": [
+    {
+      "questionId": "q_1",
+      "questionText": "[单选题] 微信小程序的主要开发语言是什么？",
+      "questionFull": "1. [单选题] 微信小程序的主要开发语言是什么？",
+      "questionType": "单选题",
+      "options": [
+        "Java",
+        "JavaScript",
+        "Python",
+        "C++"
+      ],
+      "answer": "B"
+    },
+    {
+      "questionId": "q_2",
+      "questionText": "[多选题] 微信小程序支持哪些功能？",
+      "questionFull": "2. [多选题] 微信小程序支持哪些功能？",
+      "questionType": "多选题",
+      "options": [
+        "用户登录",
+        "支付功能",
+        "地理位置",
+        "拍照功能"
+      ],
+      "answer": "ABCD"
+    },
+    {
+      "questionId": "q_3",
+      "questionText": "[判断题] 微信小程序只能在微信中使用。",
+      "questionFull": "3. [判断题] 微信小程序只能在微信中使用。",
+      "questionType": "判断题",
+      "options": [
+        "对",
+        "错"
+      ],
+      "answer": "A"
+    },
+    {
+      "questionId": "q_4",
+      "questionText": "[填空题] 微信小程序的入口文件是______。",
+      "questionFull": "4. [填空题] 微信小程序的入口文件是______。",
+      "questionType": "填空题",
+      "options": [],
+      "answer": "app.js"
+    },
+    {
+      "questionId": "q_5",
+      "questionText": "[简答题] 请简述微信小程序的生命周期。",
+      "questionFull": "5. [简答题] 请简述微信小程序的生命周期。",
+      "questionType": "简答题",
+      "options": [],
+      "answer": "微信小程序的生命周期包括onLaunch、onShow、onHide、onError等阶段，用于管理小程序的启动、显示、隐藏和错误处理。"
+    }
+  ],
+  "fileHash": "c12895c3995239873044b0cbcd5d0556"
+}
