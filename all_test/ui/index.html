@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>注入程序</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container" id="draggable-container">
+        <div class="header-title" id="draggable-header">注入程序</div>
+
+        <div class="input-group">
+            <label class="input-label">目标路径</label>
+            <div class="path-container">
+                <input type="text" class="input-field path-input" placeholder="请输入目标路径" id="target-path">
+                <button type="button" class="path-select-button" id="path-select-button">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                        <polyline points="14,2 14,8 20,8"></polyline>
+                        <line x1="16" y1="13" x2="8" y2="13"></line>
+                        <line x1="16" y1="17" x2="8" y2="17"></line>
+                        <polyline points="10,9 9,9 8,9"></polyline>
+                    </svg>
+                </button>
+            </div>
+        </div>
+
+        <div class="input-group">
+            <label class="input-label">密钥</label>
+            <div class="password-container">
+                <input type="password" class="input-field password-input" placeholder="请输入密钥" id="password-input">
+                <button type="button" class="password-toggle" id="password-toggle">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                        <circle cx="12" cy="12" r="3"></circle>
+                        <line x1="4" y1="4" x2="20" y2="20" stroke="currentColor" stroke-width="2" class="password-slash"></line>
+                    </svg>
+                </button>
+            </div>
+        </div>
+
+        <div class="display-group">
+            <label class="display-label">登录状态</label>
+            <div class="display-content">未登录</div>
+        </div>
+
+        <div class="footer">
+            <div class="update-section">
+                <div class="update-content"></div>
+            </div>
+            <button class="inject-button">注入</button>
+        </div>
+    </div>
+</body>
+</html>
