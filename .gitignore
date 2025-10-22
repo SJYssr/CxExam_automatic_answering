@@ -9,3 +9,6 @@ ai_test/backend/.env
 ai_test/backend/.env.example
 ai_test/backend/.env.example
 *.example
+/all_test/.idea
+/all_test/ui/logs
+/all_test/ui/node_modules
