@@ -15,3 +15,4 @@ ai_test/backend/.env.example
 /后端/ui/node_modules
 *.log
 /后端/.idea
+/.idea
