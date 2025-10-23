@@ -1,7 +1,7 @@
 // 超星学习通考试AI辅助填充脚本 - 前端部分
 // 功能：获取题目和选项，与后端通信获取AI答案，填充答案
 
-(function() {
+(function () {
     'use strict';
 
     console.log('[AI答题前端] 脚本开始执行');
@@ -13,9 +13,9 @@
     function isChaoxingExamPage() {
         const hostname = window.location.hostname;
         const pathname = window.location.pathname;
-        
+
         console.log('[AI答题前端] 当前页面:', hostname, pathname);
-        
+
         // 检查域名和路径是否符合考试页面
         return (
             (hostname.includes('chaoxing.com') || hostname.includes('.edu.cn')) &&
@@ -45,13 +45,13 @@
     // 初始化脚本
     function initFrontendScript() {
         console.log('[AI答题前端] 脚本初始化中');
-        
+
         // 监听鼠标中键 - 填充AI答案
-        document.addEventListener('mousedown', function(event) {
+        document.addEventListener('mousedown', function (event) {
             if (event.button === 1) { // 鼠标中键
                 event.preventDefault();
                 console.log('[AI答题前端] 用户按下了鼠标中键');
-                
+
                 if (window.aiAnswersData && Object.keys(window.aiAnswersData).length > 0) {
                     console.log('[AI答题前端] 检测到AI答案数据，开始填充');
                     fillAnswersFromAI(window.aiAnswersData);
@@ -63,11 +63,11 @@
                 }
             }
         });
-        
+
         // 页面加载后自动获取答案
         console.log('[AI答题前端] 页面加载完成，开始自动获取AI答案...');
         fetchAllAnswersFromBackend();
-        
+
         console.log('[AI答题前端] 脚本初始化完成');
         console.log('[AI答题前端] 使用说明: 鼠标中键=填充答案 | 自动获取答案');
     }
@@ -80,26 +80,27 @@
      */
     function getAllQuestionsData() {
         console.log('[AI答题前端] 开始获取题目数据...');
-        
+
         const questions = document.querySelectorAll('div.questionLi');
         if (questions.length === 0) {
             console.error('[AI答题前端] 未找到题目元素 (div.questionLi)');
             return [];
         }
-        
+
         console.log(`[AI答题前端] 检测到 ${questions.length} 道题目`);
-        
+
         const questionsData = [];
-        
+
         questions.forEach((question, index) => {
             const titleElement = question.querySelector('h3.mark_name');
             if (!titleElement) {
                 return;
             }
-            
-            const questionTextFull = titleElement.textContent.trim();
+
+            // 移除题号前缀（如"1."、"2."等）
+            const questionTextFull = titleElement.textContent.trim().replace(/^\d+\.\s*/, '');
             const questionHash = question.dataset.questionId || `q-${index}`;
-            
+
             let questionType = '未知类型';
             if (questionTextFull.includes('单选题')) {
                 questionType = '单选题';
@@ -112,7 +113,7 @@
             } else if (questionTextFull.includes('简答题')) {
                 questionType = '简答题';
             }
-            
+
             const options = [];
             const optionDivs = question.querySelectorAll('div.answerBg');
             if (optionDivs.length > 0) {
@@ -123,7 +124,7 @@
                     options.push(`${optionLabel}. ${optionContent.trim()}`);
                 });
             }
-            
+
             questionsData.push({
                 questionHash: questionHash,
                 question: questionTextFull,
@@ -131,7 +132,7 @@
                 questionType: questionType
             });
         });
-        
+
         console.log(`[AI答题前端] 成功获取 ${questionsData.length} 道题目数据`);
         return questionsData;
     }
@@ -141,16 +142,16 @@
      */
     async function fetchAllAnswersFromBackend() {
         console.log('[AI答题前端] 开始从后端获取AI答案...');
-        
+
         // 检查是否正在处理中
         if (isProcessing) {
             console.warn('[AI答题前端] 正在处理中，忽略重复请求');
             return;
         }
-        
+
         // 设置处理状态
         isProcessing = true;
-        
+
         try {
             // 获取题目数据
             const questionsData = getAllQuestionsData();
@@ -159,9 +160,9 @@
                 isProcessing = false;
                 return;
             }
-            
+
             console.log(`[AI答题前端] 准备向后端发送 ${questionsData.length} 道题目`);
-            
+
             // 向后端发送批量请求
             const response = await fetch(`${BACKEND_API_URL}/api/get-batch-answers`, {
                 method: 'POST',
@@ -170,19 +171,19 @@
                 },
                 body: JSON.stringify({ questions: questionsData })
             });
-            
+
             if (!response.ok) {
                 throw new Error(`HTTP错误: ${response.status} ${response.statusText}`);
             }
-            
+
             const result = await response.json();
-            
+
             if (result.error) {
                 throw new Error(result.message);
             }
-            
+
             console.log('[AI答题前端] 后端返回答案数据:', result);
-            
+
             // 处理返回的答案数据
             const answersData = {};
             result.answers.forEach(answer => {
@@ -195,21 +196,26 @@
                     console.warn(`[AI答题前端] 题目 ${answer.questionHash} 获取答案失败:`, answer.message);
                 }
             });
-            
+
             console.log(`[AI答题前端] 成功获取 ${Object.keys(answersData).length} 道题目的答案`);
-            
+
             // 将答案数据存储到全局变量中供填充
             window.aiAnswersData = answersData;
-            
-            // 答案准备就绪，改变鼠标指针为手形
-            document.body.style.cursor = 'pointer';
-            
+
+            // 只有当成功获取到答案时才改变鼠标指针为手形
+            if (Object.keys(answersData).length > 0) {
+                document.body.style.cursor = 'pointer';
+            } else {
+                // 没有获取到答案，保持默认鼠标指针
+                document.body.style.cursor = 'default';
+            }
+
         } catch (error) {
             console.error('[AI答题前端] 从后端获取AI答案时发生错误:', error);
-            
+
             // 获取答案失败，恢复鼠标指针
             document.body.style.cursor = 'default';
-            
+
         } finally {
             // 重置处理状态
             isProcessing = false;
@@ -223,43 +229,43 @@
     function fillAnswersFromAI(answersData = {}) {
         console.log('[AI答题前端] 开始填充AI答案到页面...');
         console.log('[AI答题前端] 答案数据包含:', Object.keys(answersData).length, '道题目');
-        
+
         const questions = document.querySelectorAll('div.questionLi');
-        
+
         if (questions.length === 0) {
             console.error('[AI答题前端] 未找到题目元素 (div.questionLi)');
             return;
         }
-        
+
         console.log(`[AI答题前端] 检测到 ${questions.length} 道题目，开始填充...`);
-        
+
         let filledCount = 0;
-        
+
         questions.forEach((question, index) => {
             const questionHash = question.dataset.questionId || `q-${index}`;
             const answerData = answersData[questionHash];
-            
+
             if (!answerData) {
                 return;
             }
-            
+
             const aiAnswer = answerData.answer;
             const questionType = answerData.type;
-            
+
             if (questionType === '单选题' || questionType === '多选题') {
                 const optionDivs = question.querySelectorAll('div.answerBg');
                 const answerLetters = aiAnswer.toUpperCase().split('');
-                
+
                 answerLetters.forEach(letter => {
                     const optionIndex = letter.charCodeAt(0) - 65; // A=0, B=1, C=2, D=3
-                    
+
                     if (optionIndex >= 0 && optionIndex < optionDivs.length) {
                         const targetDiv = optionDivs[optionIndex];
-                        
+
                         // 检查选项是否已经被选择（通过查找check_answer_dx或check_answer类）
                         const isAlreadySelected = targetDiv.querySelector('.check_answer_dx') !== null ||
                             targetDiv.querySelector('.check_answer') !== null;
-                        
+
                         if (!isAlreadySelected) {
                             // 直接点击整个answerBg div来选择选项
                             try {
@@ -275,14 +281,14 @@
                 const optionDivs = question.querySelectorAll('div.answerBg');
                 const isCorrect = aiAnswer.includes('对') || aiAnswer.includes('正确') || aiAnswer.includes('True') || aiAnswer.toLowerCase().includes('true');
                 const targetIndex = isCorrect ? 0 : 1; // 对=0, 错=1
-                
+
                 if (targetIndex < optionDivs.length) {
                     const targetDiv = optionDivs[targetIndex];
-                    
+
                     // 检查选项是否已经被选择（通过查找check_answer_dx或check_answer类）
                     const isAlreadySelected = targetDiv.querySelector('.check_answer_dx') !== null ||
                         targetDiv.querySelector('.check_answer') !== null;
-                    
+
                     if (!isAlreadySelected) {
                         // 直接点击整个answerBg div来选择判断选项
                         try {
@@ -324,7 +330,7 @@
                         });
                     }
                 });
-                
+
                 // 如果没有找到iframe，也尝试textarea方式作为备用
                 if (iframes.length === 0) {
                     const textareas = question.querySelectorAll('textarea');
@@ -338,7 +344,7 @@
                 }
             }
         });
-        
+
         console.log(`[AI答题前端] 填充完成！成功填充 ${filledCount} 个项目`);
 
         // 填充完成后，恢复鼠标指针

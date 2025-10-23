@@ -97,7 +97,8 @@
                 return;
             }
             
-            const questionTextFull = titleElement.textContent.trim();
+            // 移除题号前缀（如"1."、"2."等）
+            const questionTextFull = titleElement.textContent.trim().replace(/^\d+\.\s*/, '');
             const questionHash = question.dataset.questionId || `q-${index}`;
             
             let questionType = '未知类型';
@@ -201,8 +202,13 @@
             // 将答案数据存储到全局变量中供填充
             window.aiAnswersData = answersData;
             
-            // 答案准备就绪，改变鼠标指针为手形
-            document.body.style.cursor = 'pointer';
+            // 只有当成功获取到答案时才改变鼠标指针为手形
+            if (Object.keys(answersData).length > 0) {
+                document.body.style.cursor = 'pointer';
+            } else {
+                // 没有获取到答案，保持默认鼠标指针
+                document.body.style.cursor = 'default';
+            }
             
         } catch (error) {
             console.error('[AI答题前端] 从后端获取AI答案时发生错误:', error);

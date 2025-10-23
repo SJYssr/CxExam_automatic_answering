@@ -66,9 +66,29 @@ app.use(express.json());
 const DEEPSEEK_API_ENDPOINT = 'https://api.deepseek.com/v1/chat/completions';
 const AI_MODEL = 'deepseek-chat';
 
-// 题库文件路径
-const TIKU_FILE_PATH = path.join(__dirname, 'tiku.txt');
-const TIKU_CACHE_PATH = path.join(__dirname, 'tiku.json');
+// 题库文件路径 - 使用应用程序目录
+function getAppDir() {
+  // 如果是打包环境，使用 process.resourcesPath 获取应用程序目录
+  // 如果是开发环境，使用 __dirname
+  if (process.resourcesPath) {
+    // 打包环境：返回应用程序根目录
+    // 在 Electron 打包后，process.resourcesPath 指向 resources 目录
+    // 我们需要获取应用程序的安装目录
+    const appPath = process.resourcesPath.replace(/[\\/]resources$/, '');
+    return appPath;
+  } else {
+    // 开发环境：返回当前文件所在目录
+    return __dirname;
+  }
+}
+
+const TIKU_FILE_PATH = path.join(getAppDir(), 'tiku.txt');
+const TIKU_CACHE_PATH = path.join(getAppDir(), 'tiku.json');
+
+// 添加调试信息
+console.log('[调试] 应用程序目录:', getAppDir());
+console.log('[调试] 题库文件路径:', TIKU_FILE_PATH);
+console.log('[调试] 题库文件是否存在:', require('fs').existsSync(TIKU_FILE_PATH));
 
 /**
  * 解析题库文件，转换为前端格式
@@ -90,15 +110,15 @@ function parseTikuFile() {
         for (let i = 0; i < lines.length; i++) {
             const line = lines[i].trim();
             
-            // 检测题目开始（数字开头）
-            if (/^\d+\./.test(line)) {
+            // 检测题目开始（不以A-D.开头且不是答案行）
+            if (!/^[A-D]\./.test(line) && !line.startsWith('答案') && line.trim() !== '') {
                 // 保存上一个题目
                 if (currentQuestion) {
                     questions.push(currentQuestion);
                 }
                 
                 // 开始新题目
-                const questionText = line.replace(/^\d+\.\s*/, '').trim();
+                const questionText = line.trim();
                 currentQuestion = {
                     questionHash: `tiku-${questions.length + 1}`,
                     question: questionText,
@@ -433,9 +453,46 @@ function isTrueFalseQuestion(options) {
  * 根据选项顺序映射答案
  */
 function mapAnswerByOptionOrder(cachedAnswer, cachedOptions, currentOptions) {
-    // 如果是判断题，直接返回原答案（判断题答案不随选项顺序变化）
+    // 如果是判断题，进行答案映射
     if (isTrueFalseQuestion(cachedOptions) && isTrueFalseQuestion(currentOptions)) {
-        return cachedAnswer;
+        // 提取选项内容
+        const cachedContents = cachedOptions.map(extractOptionContent);
+        const currentContents = currentOptions.map(extractOptionContent);
+        
+        // 查找缓存答案对应的选项内容
+        let correctContent = '';
+        for (let i = 0; i < cachedAnswer.length; i++) {
+            const answerChar = cachedAnswer[i];
+            const answerIndex = answerChar.charCodeAt(0) - 'A'.charCodeAt(0);
+            
+            if (answerIndex >= 0 && answerIndex < cachedContents.length) {
+                correctContent = cachedContents[answerIndex];
+                break;
+            }
+        }
+        
+        // 根据选项内容映射答案 - 修复逻辑
+        // 如果题库中存储的答案对应的选项内容是"对"，则需要在当前选项中找到"对"的选项
+        // 如果题库中存储的答案对应的选项内容是"错"，则需要在当前选项中找到"错"的选项
+        if (correctContent.includes('对') || correctContent.includes('正确') || correctContent.includes('是')) {
+            // 题库答案对应"对"，需要在当前选项中找到"对"的选项
+            const correctIndex = currentContents.findIndex(content => 
+                content.includes('对') || content.includes('正确') || content.includes('是')
+            );
+            if (correctIndex >= 0) {
+                return String.fromCharCode('A'.charCodeAt(0) + correctIndex);
+            }
+        } else if (correctContent.includes('错') || correctContent.includes('错误') || correctContent.includes('否')) {
+            // 题库答案对应"错"，需要在当前选项中找到"错"的选项
+            const wrongIndex = currentContents.findIndex(content => 
+                content.includes('错') || content.includes('错误') || content.includes('否')
+            );
+            if (wrongIndex >= 0) {
+                return String.fromCharCode('A'.charCodeAt(0) + wrongIndex);
+            }
+        }
+        
+        return cachedAnswer; // 如果无法识别，返回原答案
     }
     
     // 如果是填空题、简答题或没有选项，直接返回原答案
@@ -492,7 +549,7 @@ function searchInTikuCache(question, options = []) {
         
         let bestMatch = null;
         let highestSimilarity = 0;
-        const similarityThreshold = 0.7; // 相似度阈值
+        const similarityThreshold = 0.55; // 相似度阈值
         
         for (const cachedQuestion of questions) {
             // 对缓存题目进行分词和词频向量计算
@@ -528,7 +585,7 @@ function searchInTikuCache(question, options = []) {
                 logger.info(`[题库检索] 选项相似度: ${optionsSimilarity.toFixed(4)}`);
                 
                 // 设置选项相似度阈值
-                const optionsSimilarityThreshold = 0.8;
+                const optionsSimilarityThreshold = 0.6;
                 
                 if (optionsSimilarity >= optionsSimilarityThreshold) {
                     logger.info(`[题库检索] 选项相似度超过阈值，进行答案映射`);
@@ -620,8 +677,8 @@ app.post('/api/login-status', (req, res) => {
             
             logger.info('[登录状态] 登录状态已重置');
             res.json({
-                success: true,
-                message: '登录状态已重置'
+                success: false,
+                message: '登录失败，AI调用权限已关闭'
             });
         }
     } catch (error) {

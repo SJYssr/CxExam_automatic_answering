@@ -11,27 +11,51 @@ const LocalVersion = 'v1.0.0';
 const fs = require('fs');
 const path = require('path');
 
-// 获取配置文件路径
-function getConfigPath() {
-  // 如果是打包后的环境，使用process.cwd()获取应用程序目录
-  if (process.env.NODE_ENV === 'production' || process.resourcesPath) {
-    return path.join(process.cwd(), 'config.json');
+// 获取配置对象
+function getConfig() {
+  const configPath = getConfigPath();
+  if (fs.existsSync(configPath)) {
+    try {
+      return JSON.parse(fs.readFileSync(configPath, 'utf8'));
+    } catch (error) {
+      console.error('读取config.json文件时出错:', error.message);
+      return {};
+    }
   }
-  // 开发环境使用__dirname
-  return path.join(__dirname, 'config.json');
+  return {};
 }
 
-let Card = '';
-
-// 读取配置文件
-const configPath = getConfigPath();
-if (fs.existsSync(configPath)) {
-  try {
-    const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
-    Card = config.Card || '';
-  } catch (error) {
-    console.error('读取config.json文件时出错:', error.message);
+// 获取配置文件路径
+function getConfigPath() {
+  // 如果是打包环境，使用 process.resourcesPath 获取应用程序目录
+  // 如果是开发环境，使用 __dirname
+  if (process.resourcesPath) {
+    // 打包环境：返回应用程序根目录
+    // 在 Electron 打包后，process.resourcesPath 指向 resources 目录
+    // 我们需要获取应用程序的安装目录
+    const appPath = process.resourcesPath.replace(/[\\/]resources$/, '');
+    return path.join(appPath, 'config.json');
+  } else {
+    // 开发环境：返回当前文件所在目录
+    return path.join(__dirname, 'config.json');
   }
+}
+
+// 动态获取Card值，每次调用时都重新读取配置文件
+function getCard() {
+  const configPath = getConfigPath();
+  console.log('[调试] 配置文件路径:', configPath);
+  console.log('[调试] 配置文件是否存在:', fs.existsSync(configPath));
+  if (fs.existsSync(configPath)) {
+    try {
+      const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+      return config.Card || '';
+    } catch (error) {
+      console.error('读取config.json文件时出错:', error.message);
+      return '';
+    }
+  }
+  return '';
 }
 
 // 导入日志系统
@@ -56,13 +80,17 @@ async function executeLoginProcess() {
         // 1. 获取MAC地址
         const macAddress = getMacAddress();
         
-        // 2. 执行登录
-        const loginResult = await login(Softid, Card, Version, macAddress);
+        // 2. 动态获取Card值
+        const currentCard = getCard();
+        console.log(`当前使用的Card值: "${currentCard}" (长度: ${currentCard.length})`);
+        
+        // 3. 执行登录
+        const loginResult = await login(Softid, currentCard, Version, macAddress);
         
         // 3. 处理登录结果
-        if (loginResult.success) {
+        if (loginResult.success && loginResult.isToken && loginResult.token) {
             console.log('登录成功');
-            // console.log(`Token: ${loginResult.token}`);
+            console.log(`Token: ${loginResult.token}`);
             
             // 登录成功后获取到期时间
             try {
@@ -83,7 +111,7 @@ async function executeLoginProcess() {
             
             // 登录成功后获取版本号名称并与本地版本对比
             try {
-                const versionResult = await getVersionName(Softid, Card, loginResult.token, Version);
+                const versionResult = await getVersionName(Softid, currentCard, loginResult.token, Version);
                 
                 if (versionResult.success) {
                     const remoteVersionName = versionResult.versionName || versionResult.data;

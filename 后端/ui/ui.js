@@ -93,44 +93,42 @@ ipcMain.handle('inject-winmm-dll', async (event, targetPath) => {
         // 注入成功，现在启动目标程序
                 console.log('[注入] 注入成功，正在启动目标程序...');
         
-        return new Promise((resolve) => {
-          console.log('[启动] 正在启动目标程序...');
-          
-          // 直接启动目标程序，不使用spawn
-          try {
-            // 使用shell命令启动程序
-            const { exec } = require('child_process');
-            exec(`start "" "${targetPath}"`, (error, stdout, stderr) => {
-              if (error) {
-                console.error('[启动] 启动目标程序失败:', error);
-                // 即使启动失败，也继续执行后续逻辑
-              } else {
-                console.log('[启动] 目标程序已启动:', targetPath);
-              }
-              
-              // 启动进程监控
-              startProcessMonitor(targetPath, targetDllPath);
-              
-              // 返回成功结果
-              resolve({ 
-                success: true, 
-                message: `成功注入并启动: ${targetPath}`,
-                targetPath: targetDllPath
-              });
-            });
-          } catch (error) {
-            console.error('[启动] 启动目标程序异常:', error);
+        console.log('[启动] 正在启动目标程序...');
+        
+        // 直接启动目标程序，不使用spawn
+        try {
+          // 使用shell命令启动程序
+          const { exec } = require('child_process');
+          exec(`start "" "${targetPath}"`, (error, stdout, stderr) => {
+            if (error) {
+              console.error('[启动] 启动目标程序失败:', error);
+              // 即使启动失败，也继续执行后续逻辑
+            } else {
+              console.log('[启动] 目标程序已启动:', targetPath);
+            }
             
-            // 即使启动异常，也继续执行后续逻辑
+            // 启动进程监控
             startProcessMonitor(targetPath, targetDllPath);
-            
-            resolve({ 
-              success: true, 
-              message: `成功注入，启动程序时出现异常但已继续执行: ${targetPath}`,
-              targetPath: targetDllPath
-            });
-          }
-        });
+          });
+          
+          // 立即返回成功结果，不等待程序启动完成
+          return { 
+            success: true, 
+            message: `成功注入并启动: ${targetPath}`,
+            targetPath: targetDllPath
+          };
+        } catch (error) {
+          console.error('[启动] 启动目标程序异常:', error);
+          
+          // 即使启动异常，也继续执行后续逻辑
+          startProcessMonitor(targetPath, targetDllPath);
+          
+          return { 
+            success: true, 
+            message: `成功注入，启动程序时出现异常但已继续执行: ${targetPath}`,
+            targetPath: targetDllPath
+          };
+        }
       } else {
         return { 
           success: false, 
@@ -284,22 +282,45 @@ ipcMain.handle('auto-login', async () => {
       const loginResult = await mainModule.executeLoginProcess();
       
       const result = {
-        success: loginResult.success,
-        exitCode: loginResult.success ? 0 : -1,
-        output: loginResult.message || '',
-        errorOutput: loginResult.error || '',
-        fullOutput: loginResult.message || loginResult.error || ''
+        success: false,
+        exitCode: -1,
+        output: '',
+        errorOutput: '',
+        fullOutput: ''
       };
       
-      // 如果登录成功，获取token
-      if (loginResult.success && loginResult.token) {
-        result.token = loginResult.token;
+      // 处理登录结果 - 真正的登录成功应该是收到了有效的token
+      if (loginResult.success && loginResult.isToken && loginResult.token) {
+        console.log('自动登录成功');
+        console.log(`Token: ${loginResult.token}`);
         
         // 发送登录状态到后端
+        result.token = loginResult.token;
         sendLoginStatusToBackend(true, loginResult.token);
+        
+        // 返回登录结果
+        result.success = true;
+        result.exitCode = 0;
+        result.output = loginResult.message || '登录成功';
+        result.fullOutput = loginResult.message || '登录成功';
+        result.expireTime = loginResult.expireTime;
+        result.hasNewVersion = loginResult.hasNewVersion;
+        result.remoteVersion = loginResult.remoteVersion;
+        result.localVersion = loginResult.localVersion;
       } else {
-        // 登录失败时发送重置状态
+        console.log('自动登录失败');
+        
+        // 如果登录失败，发送失败状态到后端
         sendLoginStatusToBackend(false, null);
+        
+        // 返回失败结果
+        result.success = false;
+        result.exitCode = -1;
+        result.output = loginResult.message || '登录失败';
+        result.errorOutput = loginResult.error || '';
+        result.fullOutput = loginResult.message || loginResult.error || '登录失败';
+        result.error = loginResult.error;
+        result.errorCode = loginResult.errorCode;
       }
       
       resolve(result);
@@ -389,6 +410,8 @@ function sendLoginStatusToBackend(isLoggedIn, token) {
         console.log(`[登录状态] 发送成功: ${result.message}`);
       } else {
         console.log(`[登录状态] 发送失败: ${result.message}`);
+        // 登录失败时，确保AI调用权限已关闭
+        console.log('[验证] 登录失败，AI调用权限已关闭');
       }
     })
     .catch(error => {
@@ -533,7 +556,7 @@ async function checkProcessStatus(processPath) {
         // 不再需要删除authorization.js文件（已弃用）
         
         // 删除tiku.json文件
-        const tikuFilePath = path.join(__dirname, 'tiku.json');
+        const tikuFilePath = path.join(process.cwd(), 'tiku.json');
         if (fs.existsSync(tikuFilePath)) {
           try {
             fs.unlinkSync(tikuFilePath);
@@ -628,7 +651,7 @@ app.on('window-all-closed', async () => {
   // 不再需要删除authorization.js文件（已弃用）
   
   // 删除tiku.json文件
-  const tikuFilePath = path.join(__dirname, 'tiku.json');
+  const tikuFilePath = path.join(process.cwd(), 'tiku.json');
   if (fs.existsSync(tikuFilePath)) {
     try {
       fs.unlinkSync(tikuFilePath);

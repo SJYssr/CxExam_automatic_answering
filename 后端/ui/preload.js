@@ -266,12 +266,17 @@ document.addEventListener('DOMContentLoaded', () => {
                                 // 提取关键信息
                                 for (const line of lines) {
                                     if (line.includes('到期时间:')) {
-                                        statusText += ' - ' + line.trim();
+                                        statusText += ' | ' + line.trim();
                                     } else if (line.includes('最新版本:')) {
-                                        statusText += ' - ' + line.trim();
+                                        statusText += ' | ' + line.trim();
                                     } else if (line.includes('当前已是最新版本')) {
-                                        statusText += ' - 当前已是最新版本';
+                                        statusText += ' | 当前已是最新版本';
                                     }
+                                }
+                                
+                                // 如果有到期时间信息，优先显示到期时间
+                                if (loginResult.expireTime) {
+                                    statusText = '登录成功 | 到期时间: ' + loginResult.expireTime;
                                 }
                                 
                                 loginStatus.textContent = statusText;
@@ -290,6 +295,11 @@ document.addEventListener('DOMContentLoaded', () => {
                                         break;
                                     }
                                 }
+                            }
+                            
+                            // 如果没有提取到具体错误信息，显示通用错误
+                            if (loginStatus.textContent === '登录失败' && loginResult.error) {
+                                loginStatus.textContent = '登录失败: ' + loginResult.error;
                             }
                         }
                     }).catch(error => {
@@ -341,11 +351,16 @@ document.addEventListener('DOMContentLoaded', () => {
                                         const lines = loginResult.output.split('\n');
                                         let loginInfo = '登录成功';
                                         
-                                        for (const line of lines) {
-                                            if (line.includes('到期时间:')) {
-                                                loginInfo += ' | ' + line.trim();
-                                            } else if (line.includes('当前已是最新版本') || line.includes('有新版本')) {
-                                                loginInfo += ' | ' + line.trim();
+                                        // 优先使用到期时间信息
+                                        if (loginResult.expireTime) {
+                                            loginInfo = '登录成功 | 到期时间: ' + loginResult.expireTime;
+                                        } else {
+                                            for (const line of lines) {
+                                                if (line.includes('到期时间:')) {
+                                                    loginInfo += ' | ' + line.trim();
+                                                } else if (line.includes('当前已是最新版本') || line.includes('有新版本')) {
+                                                    loginInfo += ' | ' + line.trim();
+                                                }
                                             }
                                         }
                                         
@@ -365,6 +380,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                         loginStatus.textContent = '登录失败';
                                         loginStatus.style.color = '#dc3545';
                                         
+                                        // 显示错误信息
                                         if (loginResult.errorOutput) {
                                             const errorLines = loginResult.errorOutput.split('\n');
                                             for (const line of errorLines) {
@@ -373,6 +389,11 @@ document.addEventListener('DOMContentLoaded', () => {
                                                     break;
                                                 }
                                             }
+                                        }
+                                        
+                                        // 如果没有提取到具体错误信息，显示通用错误
+                                        if (loginStatus.textContent === '登录失败' && loginResult.error) {
+                                            loginStatus.textContent = '登录失败: ' + loginResult.error;
                                         }
                                     }
                                 }

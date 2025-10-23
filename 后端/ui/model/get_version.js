@@ -1,7 +1,44 @@
 const https = require('https');
 const http = require('http');
+const fs = require('fs');
+const path = require('path');
 const { formatError, getErrorMessage } = require('./error_code');
-const { Softid, Card, Version } = require('../config'); // 从配置文件导入常量
+
+/**
+ * 动态获取配置信息
+ * @returns {Object} 配置对象
+ */
+function getConfig() {
+    try {
+        // 尝试从当前目录的config.json读取
+        const configPath = path.join(process.cwd(), 'config.json');
+        if (fs.existsSync(configPath)) {
+            const configContent = fs.readFileSync(configPath, 'utf8');
+            return JSON.parse(configContent);
+        }
+        
+        // 如果当前目录没有，尝试从上级目录读取
+        const parentConfigPath = path.join(process.cwd(), '..', 'config.json');
+        if (fs.existsSync(parentConfigPath)) {
+            const configContent = fs.readFileSync(parentConfigPath, 'utf8');
+            return JSON.parse(configContent);
+        }
+        
+        // 如果都没有找到，返回默认值
+        return {
+            Softid: 'default_softid',
+            Card: 'default_card',
+            Version: '1.0.0'
+        };
+    } catch (error) {
+        console.error('读取配置文件失败:', error);
+        return {
+            Softid: 'default_softid',
+            Card: 'default_card',
+            Version: '1.0.0'
+        };
+    }
+}
 
 
 /**
@@ -221,7 +258,8 @@ async function getVersionName(softid, username, token, version) {
  */
 async function getVersionNameWithGlobalVars(token) {
     const fetcher = new VersionFetcher();
-    return await fetcher.getVersionName(Softid, Card, token, Version);
+    const config = getConfig(); // 动态获取配置
+    return await fetcher.getVersionName(config.Softid, config.Card, token, config.Version);
 }
 
 /**
@@ -238,10 +276,7 @@ module.exports = {
     VersionFetcher,
     getVersionName,
     getVersionNameWithGlobalVars,
-    checkEndpointStatus,
-    Softid,
-    Card,
-    Version
+    checkEndpointStatus
 };
 
 // 如果直接运行此文件，则自动取版本号名称并输出结果

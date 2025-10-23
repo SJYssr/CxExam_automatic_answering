@@ -1,8 +1,37 @@
 const https = require('https');
 const http = require('http');
+const fs = require('fs');
+const path = require('path');
 const { formatError, getErrorMessage } = require('./error_code');
 const { getMacAddress } = require('./get_mac');
-const { Softid, Card, Version } = require('../config'); // 从配置文件导入常量
+
+// 动态读取配置，兼容打包环境
+function getConfig() {
+  // 软件标识（直接写入）
+  const Softid = '6G6G7V8C2T9L9U8A';
+  
+  // 版本号（直接写入）
+  const Version = '1.0';
+  
+  let Card = '';
+  
+  // 尝试从配置文件读取Card值
+  try {
+    // 在打包环境中，使用process.cwd()获取应用程序目录
+    // 在开发环境中，使用__dirname
+    const appDir = process.cwd();
+    const configPath = path.join(appDir, 'config.json');
+    
+    if (fs.existsSync(configPath)) {
+      const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+      Card = config.Card || '';
+    }
+  } catch (error) {
+    console.error('读取config.json文件时出错:', error.message);
+  }
+  
+  return { Softid, Card, Version };
+}
 
 /**
  * 单码登录类 - 支持线路切换功能
@@ -231,7 +260,8 @@ async function login(softid, card, version, mac) {
 async function loginWithGlobalVars() {
     const fetcher = new LoginFetcher();
     const macAddress = getMacAddress(); // 动态获取MAC地址
-    return await fetcher.login(Softid, Card, Version, macAddress);
+    const config = getConfig(); // 动态获取配置
+    return await fetcher.login(config.Softid, config.Card, config.Version, macAddress);
 }
 
 /**
