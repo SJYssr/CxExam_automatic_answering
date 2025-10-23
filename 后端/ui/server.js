@@ -8,7 +8,7 @@ const axios = require('axios');
 const logger = require('./logger');
 
 // DeepSeek API配置
-const DEEPSEEK_API_KEY = 'sk-b18807239d424cc19cdac7e9a8c20551';
+const DEEPSEEK_API_KEY = 'sk-9951e77313c344b5907f99ae4db45e26';
 
 // 登录状态管理
 let loginStatus = {
@@ -459,7 +459,13 @@ function mapAnswerByOptionOrder(cachedAnswer, cachedOptions, currentOptions) {
         const cachedContents = cachedOptions.map(extractOptionContent);
         const currentContents = currentOptions.map(extractOptionContent);
         
-        // 查找缓存答案对应的选项内容
+        // 检查题库答案格式
+        if (cachedAnswer === '对' || cachedAnswer === '错') {
+            // 题库答案已经是中文格式，直接返回
+            return cachedAnswer;
+        }
+        
+        // 如果题库答案是字母格式，需要映射
         let correctContent = '';
         for (let i = 0; i < cachedAnswer.length; i++) {
             const answerChar = cachedAnswer[i];
@@ -471,9 +477,7 @@ function mapAnswerByOptionOrder(cachedAnswer, cachedOptions, currentOptions) {
             }
         }
         
-        // 根据选项内容映射答案 - 修复逻辑
-        // 如果题库中存储的答案对应的选项内容是"对"，则需要在当前选项中找到"对"的选项
-        // 如果题库中存储的答案对应的选项内容是"错"，则需要在当前选项中找到"错"的选项
+        // 根据选项内容映射答案
         if (correctContent.includes('对') || correctContent.includes('正确') || correctContent.includes('是')) {
             // 题库答案对应"对"，需要在当前选项中找到"对"的选项
             const correctIndex = currentContents.findIndex(content => 
