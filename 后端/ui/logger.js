@@ -3,7 +3,8 @@ const path = require('path');
 
 class Logger {
     constructor() {
-        this.logDir = path.join(__dirname, 'logs');
+        // 在打包环境中，使用process.cwd()获取可写目录
+        this.logDir = path.join(process.cwd(), 'logs');
         this.currentLogFile = null;
         this.ensureLogDir();
         this.createLogFile();
@@ -19,9 +20,18 @@ class Logger {
 
     // 确保logs目录存在
     ensureLogDir() {
-        if (!fs.existsSync(this.logDir)) {
-            fs.mkdirSync(this.logDir, { recursive: true });
-            this.writeToLog(`[${this.getTimestamp()}] 日志目录已创建: ${this.logDir}`);
+        try {
+            if (!fs.existsSync(this.logDir)) {
+                fs.mkdirSync(this.logDir, { recursive: true });
+                this.writeToLog(`[${this.getTimestamp()}] 日志目录已创建: ${this.logDir}`);
+            }
+        } catch (error) {
+            // 如果创建目录失败，使用临时目录
+            this.logDir = path.join(require('os').tmpdir(), 'cxexam-logs');
+            if (!fs.existsSync(this.logDir)) {
+                fs.mkdirSync(this.logDir, { recursive: true });
+            }
+            this.writeToLog(`[${this.getTimestamp()}] 使用临时日志目录: ${this.logDir}`);
         }
     }
 

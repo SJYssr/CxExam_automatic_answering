@@ -8,8 +8,31 @@ const Version = '1.0';
 const LocalVersion = 'v1.0.0';
 
 // 从配置文件导入Card常量
-const config = require('./config.json');
-const Card = config.Card;
+const fs = require('fs');
+const path = require('path');
+
+// 获取配置文件路径
+function getConfigPath() {
+  // 如果是打包后的环境，使用process.cwd()获取应用程序目录
+  if (process.env.NODE_ENV === 'production' || process.resourcesPath) {
+    return path.join(process.cwd(), 'config.json');
+  }
+  // 开发环境使用__dirname
+  return path.join(__dirname, 'config.json');
+}
+
+let Card = '';
+
+// 读取配置文件
+const configPath = getConfigPath();
+if (fs.existsSync(configPath)) {
+  try {
+    const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+    Card = config.Card || '';
+  } catch (error) {
+    console.error('读取config.json文件时出错:', error.message);
+  }
+}
 
 // 导入日志系统
 const logger = require('./logger');

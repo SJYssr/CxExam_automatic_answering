@@ -16,3 +16,4 @@ ai_test/backend/.env.example
 *.log
 /后端/.idea
 /.idea
+/后端/ui/dist

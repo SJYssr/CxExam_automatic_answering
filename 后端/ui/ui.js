@@ -1,8 +1,6 @@
 const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const path = require('path');
 const fs = require('fs');
-const { spawn } = require('child_process');
-const ps = require('ps-node');
 
 // 导入日志系统
 const logger = require('./logger');
@@ -20,7 +18,7 @@ let isExiting = false; // 防止重复退出应用程序的标志
 function createWindow() {
   const win = new BrowserWindow({
     width: 480,
-    height: 550,
+    height: 580,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'), // 预加载脚本，用于窗口拖拽和控制
       nodeIntegration: true, // 允许在渲染进程中使用 Node.js API
@@ -55,7 +53,7 @@ function createWindow() {
   // 保存目标路径到config.json
   ipcMain.handle('save-target-path', async (event, targetPath) => {
     try {
-      const configPath = path.join(__dirname, 'config.json');
+      const configPath = getConfigPath();
       const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
       config.targetPath = targetPath;
       fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
@@ -93,33 +91,45 @@ ipcMain.handle('inject-winmm-dll', async (event, targetPath) => {
       
       if (sourceStats.size === targetStats.size) {
         // 注入成功，现在启动目标程序
-        const { spawn } = require('child_process');
-        console.log('[注入] 注入成功，正在启动目标程序...');
+                console.log('[注入] 注入成功，正在启动目标程序...');
         
         return new Promise((resolve) => {
           console.log('[启动] 正在启动目标程序...');
           
-          // 使用spawn而不是exec，这样可以更好地控制进程
-          const childProcess = spawn(`"${targetPath}"`, [], {
-            shell: true,
-            detached: true, // 让程序独立运行
-            stdio: 'ignore' // 忽略标准输入输出，避免阻塞
-          });
-          
-          // 程序启动后立即返回成功，因为程序已经成功启动
-          childProcess.unref(); // 让子进程独立运行
-          
-          console.log('[启动] 目标程序已启动:', targetPath);
-          
-          // 启动进程监控
-          startProcessMonitor(targetPath, targetDllPath);
-          
-          // 立即返回成功，因为程序已经成功启动
-          resolve({ 
-            success: true, 
-            message: `成功注入并启动: ${targetPath}`,
-            targetPath: targetDllPath
-          });
+          // 直接启动目标程序，不使用spawn
+          try {
+            // 使用shell命令启动程序
+            const { exec } = require('child_process');
+            exec(`start "" "${targetPath}"`, (error, stdout, stderr) => {
+              if (error) {
+                console.error('[启动] 启动目标程序失败:', error);
+                // 即使启动失败，也继续执行后续逻辑
+              } else {
+                console.log('[启动] 目标程序已启动:', targetPath);
+              }
+              
+              // 启动进程监控
+              startProcessMonitor(targetPath, targetDllPath);
+              
+              // 返回成功结果
+              resolve({ 
+                success: true, 
+                message: `成功注入并启动: ${targetPath}`,
+                targetPath: targetDllPath
+              });
+            });
+          } catch (error) {
+            console.error('[启动] 启动目标程序异常:', error);
+            
+            // 即使启动异常，也继续执行后续逻辑
+            startProcessMonitor(targetPath, targetDllPath);
+            
+            resolve({ 
+              success: true, 
+              message: `成功注入，启动程序时出现异常但已继续执行: ${targetPath}`,
+              targetPath: targetDllPath
+            });
+          }
         });
       } else {
         return { 
@@ -173,11 +183,21 @@ ipcMain.on('hide-window', () => {
       
       // 无论是否检测到server.js已在运行，都进行必要的初始化
       // 检查config.json中的Card值，如果为空则提示用户输入
-      const config = require('./config.json');
-      if (!config.Card || config.Card.trim() === '') {
-        console.log('[界面] 检测到未设置密钥，等待用户输入...');
-      } else {
-        console.log('[界面] 检测到已设置密钥，可以执行自动登录...');
+      try {
+        const configPath = getConfigPath();
+        if (fs.existsSync(configPath)) {
+          const configData = fs.readFileSync(configPath, 'utf8');
+          const config = JSON.parse(configData);
+          if (!config.Card || config.Card.trim() === '') {
+            console.log('[界面] 检测到未设置密钥，等待用户输入...');
+          } else {
+            console.log('[界面] 检测到已设置密钥，可以执行自动登录...');
+          }
+        } else {
+          console.log('[界面] 缓存文件不存在，等待用户输入...');
+        }
+      } catch (error) {
+        console.error('[界面] 读取缓存时出错:', error.message);
       }
     } else {
       console.error('[界面] 服务启动失败:', backendResult.error);
@@ -188,9 +208,17 @@ ipcMain.on('hide-window', () => {
   // win.webContents.openDevTools(); // 打开开发者工具，方便调试
 }
 
+// 获取配置文件路径（兼容打包环境）
+function getConfigPath() {
+  // 在打包环境中，使用process.cwd()获取应用程序目录
+  // 在开发环境中，使用__dirname
+  const appDir = process.cwd();
+  return path.join(appDir, 'config.json');
+}
+
 // 读取 config.json 文件中的配置值
 ipcMain.handle('read-config', async () => {
-  const configPath = path.join(__dirname, 'config.json');
+  const configPath = getConfigPath();
   
   try {
     // 检查文件是否存在
@@ -220,7 +248,7 @@ ipcMain.handle('read-config', async () => {
 
 // 保存 Card 值到 config.json
 ipcMain.handle('save-config', async (event, cardValue) => {
-  const configPath = path.join(__dirname, 'config.json');
+  const configPath = getConfigPath();
   
   try {
     let config = {};
@@ -245,126 +273,62 @@ ipcMain.handle('save-config', async (event, cardValue) => {
 
 // 执行自动登录
 ipcMain.handle('auto-login', async () => {
-  const { spawn } = require('child_process');
   const path = require('path');
   
-  return new Promise((resolve) => {
-    const mainJsPath = path.join(__dirname, 'main.js');
-    
-    // 使用 node 执行 main.js
-    const childProcess = spawn('node', [mainJsPath], {
-      cwd: __dirname
-    });
-    
-    let output = '';
-    let errorOutput = '';
-    
-    // 收集标准输出
-    childProcess.stdout.on('data', (data) => {
-      output += data.toString();
-    });
-    
-    // 收集错误输出
-    childProcess.stderr.on('data', (data) => {
-      errorOutput += data.toString();
-    });
-    
-    // 进程结束
-    childProcess.on('close', (code) => {
+  return new Promise(async (resolve) => {
+    try {
+      // 直接调用main.js中的函数，而不是通过spawn启动外部进程
+      const mainModule = require('./main');
+      
+      // 执行自动登录逻辑
+      const loginResult = await mainModule.executeLoginProcess();
+      
       const result = {
-        success: code === 0,
-        exitCode: code,
-        output: output.trim(),
-        errorOutput: errorOutput.trim(),
-        fullOutput: output + errorOutput
+        success: loginResult.success,
+        exitCode: loginResult.success ? 0 : -1,
+        output: loginResult.message || '',
+        errorOutput: loginResult.error || '',
+        fullOutput: loginResult.message || loginResult.error || ''
       };
       
-      // 如果登录成功，直接调用login.js获取token
-      if (result.success) {
-        const { login } = require('./model/login');
-        const { getMacAddress } = require('./model/get_mac');
-        const config = require('./config.json');
+      // 如果登录成功，获取token
+      if (loginResult.success && loginResult.token) {
+        result.token = loginResult.token;
         
-        // 使用与main.js相同的参数调用login函数
-        const softid = '6G6G7V8C2T9L9U8A';
-        const card = config.Card;
-        const version = '1.0';
-        const macAddress = getMacAddress();
-        
-        login(softid, card, version, macAddress)
-          .then(loginResult => {
-            if (loginResult.success && loginResult.token) {
-              const token = loginResult.token;
-              result.token = token;
-              
-              // 发送登录状态到后端（不再创建authorization.js文件）
-              sendLoginStatusToBackend(true, token);
-            } else {
-              // 登录失败时发送重置状态
-              sendLoginStatusToBackend(false, null);
-            }
-            
-            resolve(result);
-          })
-          .catch(error => {
-            console.error('调用login函数失败:', error.message);
-            result.loginError = error.message;
-            resolve(result);
-          });
+        // 发送登录状态到后端
+        sendLoginStatusToBackend(true, loginResult.token);
       } else {
-        resolve(result);
+        // 登录失败时发送重置状态
+        sendLoginStatusToBackend(false, null);
       }
-    });
-    
-    // 设置超时（30秒）
-    setTimeout(() => {
-      if (!childProcess.killed) {
-        childProcess.kill();
-        resolve({
-          success: false,
-          exitCode: -1,
-          output: '',
-          errorOutput: '登录超时',
-          fullOutput: '登录过程超时（30秒）'
-        });
-      }
-    }, 30000);
+      
+      resolve(result);
+      
+    } catch (error) {
+      console.error('自动登录失败:', error.message);
+      
+      const result = {
+        success: false,
+        exitCode: -1,
+        output: '',
+        errorOutput: error.message,
+        fullOutput: error.message
+      };
+      
+      // 登录失败时发送重置状态
+      sendLoginStatusToBackend(false, null);
+      
+      resolve(result);
+    }
   });
 });
 
 // 检查是否已有server.js进程在运行
 function isServerRunning() {
   return new Promise((resolve) => {
-    const { exec } = require('child_process');
-    
-    // 检查是否有node进程正在运行server.js
-    exec('tasklist /FI "IMAGENAME eq node.exe" /FO CSV', (error, stdout, stderr) => {
-      if (error) {
-        console.error('检查node进程失败:', error);
-        resolve(false);
-        return;
-      }
-      
-      // 解析tasklist输出，检查是否有server.js进程
-      const lines = stdout.split('\n').filter(line => line.trim() && line.includes('node.exe'));
-      
-      if (lines.length === 0) {
-        resolve(false);
-        return;
-      }
-      
-      // 使用wmic检查进程命令行参数
-      exec('wmic process where "name=\'node.exe\'" get commandline', (wmicError, wmicStdout, wmicStderr) => {
-        if (wmicError) {
-          console.error('检查node进程命令行失败:', wmicError);
-          resolve(false);
-          return;
-        }
-        
-        const wmicLines = wmicStdout.split('\n').filter(line => line.trim() && line.includes('server.js'));
-        resolve(wmicLines.length > 0);
-      });
-    });
+    // 由于现在server.js在主进程中运行，我们不需要检查外部进程
+    // 直接返回false，让启动逻辑继续执行
+    resolve(false);
   });
 }
 
@@ -380,54 +344,25 @@ function startBackendService() {
       return;
     }
     
-    const serverJsPath = path.join(__dirname, 'server.js');
-    
-    // 使用 node 执行 server.js
-    backendProcess = spawn('node', [serverJsPath], {
-      cwd: __dirname,
-      stdio: ['pipe', 'pipe', 'pipe']
-    });
-    
-    let output = '';
-    let errorOutput = '';
-    
-    // 收集标准输出
-    backendProcess.stdout.on('data', (data) => {
-      output += data.toString();
-      console.log(`[服务] ${data.toString().trim()}`);
+    try {
+      // 直接在主进程中运行server.js
+      console.log('[服务] 正在启动后端服务...');
       
-      // 检查是否启动成功（监听端口3000）
-      if (data.toString().includes('3000')) {
-        console.log('[服务] 服务启动成功');
-        resolve({ success: true, output: output });
+      // 导入server.js模块并启动服务
+      const serverModule = require('./server');
+      
+      // 如果server.js导出了启动函数，则调用它
+      if (typeof serverModule.startServer === 'function') {
+        serverModule.startServer();
       }
-    });
-    
-    // 收集错误输出
-    backendProcess.stderr.on('data', (data) => {
-      errorOutput += data.toString();
-      console.error(`[后端服务错误] ${data.toString().trim()}`);
-    });
-    
-    // 进程错误处理
-    backendProcess.on('error', (error) => {
+      
+      console.log('[服务] 后端服务启动成功');
+      resolve({ success: true, message: '后端服务启动成功' });
+      
+    } catch (error) {
       console.error('[后端服务] 启动失败:', error.message);
       resolve({ success: false, error: error.message });
-    });
-    
-    // 进程退出处理
-    backendProcess.on('close', (code) => {
-      backendProcess = null;
-    });
-    
-    // 设置启动超时（10秒）
-    setTimeout(() => {
-      if (backendProcess && !backendProcess.killed) {
-        // 直接认为服务启动成功，不进行健康检查
-        console.log('[服务] 服务启动成功');
-        resolve({ success: true, output: output });
-      }
-    }, 10000);
+    }
   });
 }
 
@@ -471,23 +406,8 @@ function isProcessRunning(processPath) {
     exec('tasklist /FI "IMAGENAME eq CXExam.exe" /FO CSV', (error, stdout, stderr) => {
       if (error) {
         console.error('检查进程状态失败:', error);
-        // 如果tasklist失败，尝试使用ps-node作为备用方案
-        ps.lookup({ command: 'CXExam.exe' }, (err, resultList) => {
-          if (err) {
-            console.error('ps-node检查进程状态失败:', err);
-            resolve(false);
-            return;
-          }
-          
-          // 检查是否有匹配的进程
-          const matchingProcess = resultList.find(process => {
-            // 检查进程路径是否匹配
-            return process && process.arguments && 
-                   process.arguments.some(arg => arg.includes(processPath));
-          });
-          
-          resolve(!!matchingProcess);
-        });
+        // 如果tasklist失败，直接返回false
+        resolve(false);
         return;
       }
       

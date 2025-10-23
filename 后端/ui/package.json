@@ -1,22 +1,24 @@
 {
-  "name": "my-electron-app",
-  "version": "1.0.0",
-  "description": "A simple Electron UI based on an image with authentication module.",
+  "name": "CxExam_automatic_answering",
+  "version": "1.0.2",
+  "description": "CxExam_automatic_answering",
   "main": "ui.js",
   "scripts": {
     "start": "chcp 65001 >nul && electron .",
-    "dev": "node main.js"
+    "dev": "node main.js",
+    "build": "electron-builder",
+    "build-win": "electron-builder --win",
+    "dist": "electron-builder --publish=never"
   },
   "dependencies": {
     "axios": "^1.12.2",
     "cors": "^2.8.5",
     "express": "^5.1.0",
-    "node-fetch": "^3.3.2",
-    "os": "^0.1.2",
-    "ps-node": "^0.1.6"
+    "node-fetch": "^3.3.2"
   },
   "devDependencies": {
-    "electron": "^28.0.0"
+    "electron": "^28.0.0",
+    "electron-builder": "^26.0.12"
   },
   "keywords": [
     "electron",
@@ -28,5 +30,35 @@
     "nodejs"
   ],
   "author": "",
-  "license": "MIT"
+  "license": "MIT",
+  "build": {
+    "appId": "com.cxexam.automatic-answering",
+    "productName": "CxExam自动答题",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "ui.js",
+      "main.js",
+      "preload.js",
+      "index.html",
+      "style.css",
+      "logger.js",
+      "server.js",
+      "winmm.dll",
+      "model/**/*",
+      "node_modules/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": "nsis",
+      "requestedExecutionLevel": "highestAvailable"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    }
+  }
 }

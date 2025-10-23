@@ -30,12 +30,12 @@ function validateToken() {
     if (loginStatus.token && loginStatus.token.trim() && loginStatus.token.length > 10) {
         loginStatus.aiAccessEnabled = true;
         loginStatus.isLoggedIn = true; // 确保登录状态同步
-        logger.info('[验证] Token验证通过，AI调用权限已开启');
+        logger.info('[验证] 验证通过，AI调用权限已开启');
         return true;
     } else {
         loginStatus.aiAccessEnabled = false;
         loginStatus.isLoggedIn = false; // 确保登录状态同步
-        logger.info('[验证] Token验证失败，AI调用权限已关闭');
+        logger.info('[验证] 验证失败，AI调用权限已关闭');
         return false;
     }
 }
@@ -921,54 +921,67 @@ app.post('/api/tiku/refresh', (req, res) => {
     }
 });
 
-// 启动服务器
-const server = app.listen(PORT, () => {
-    // 启动时生成题库缓存
-    generateTikuCache();
-});
-
-// 优雅关闭处理
-process.on('SIGINT', () => {
-    logger.info('\n[服务] 收到关闭信号，正在清理...');
-    
-    // 清理题库缓存
-    cleanupTikuCache();
-    
-    server.close(() => {
-        logger.info('[服务] 服务已关闭');
-        process.exit(0);
+// 启动服务器函数
+function startServer() {
+    const server = app.listen(PORT, () => {
+        logger.info(`[服务] 后端服务已启动，监听端口 ${PORT}`);
+        // 启动时生成题库缓存
+        generateTikuCache();
     });
-});
-
-process.on('SIGTERM', () => {
-    logger.info('\n[服务] 收到终止信号，正在清理...');
     
-    // 清理题库缓存
-    cleanupTikuCache();
-    
-    server.close(() => {
-        logger.info('[服务] 服务已关闭');
-        process.exit(0);
+    // 优雅关闭处理
+    process.on('SIGINT', () => {
+        logger.info('\n[服务] 收到关闭信号，正在清理...');
+        
+        // 清理题库缓存
+        cleanupTikuCache();
+        
+        server.close(() => {
+            logger.info('[服务] 服务已关闭');
+            process.exit(0);
+        });
     });
-});
 
-// 未捕获异常处理
-process.on('uncaughtException', (error) => {
-    logger.error('[服务器] 未捕获异常:', error.message);
-    
-    // 清理题库缓存
-    cleanupTikuCache();
-    
-    process.exit(1);
-});
+    process.on('SIGTERM', () => {
+        logger.info('\n[服务] 收到终止信号，正在清理...');
+        
+        // 清理题库缓存
+        cleanupTikuCache();
+        
+        server.close(() => {
+            logger.info('[服务] 服务已关闭');
+            process.exit(0);
+        });
+    });
 
-process.on('unhandledRejection', (reason, promise) => {
-    logger.error('[服务器] 未处理的Promise拒绝:', reason);
-    
-    // 清理题库缓存
-    cleanupTikuCache();
-    
-    process.exit(1);
-});
+    // 未捕获异常处理
+    process.on('uncaughtException', (error) => {
+        logger.error('[服务器] 未捕获异常:', error.message);
+        
+        // 清理题库缓存
+        cleanupTikuCache();
+        
+        process.exit(1);
+    });
 
-module.exports = app;
+    process.on('unhandledRejection', (reason, promise) => {
+        logger.error('[服务器] 未处理的Promise拒绝:', reason);
+        
+        // 清理题库缓存
+        cleanupTikuCache();
+        
+        process.exit(1);
+    });
+    
+    return server;
+}
+
+// 如果直接运行此文件，则启动服务器
+if (require.main === module) {
+    startServer();
+}
+
+module.exports = {
+    app,
+    startServer
+};
