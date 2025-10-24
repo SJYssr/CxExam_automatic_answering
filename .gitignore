@@ -18,3 +18,4 @@ ai_test/backend/.env.example
 /.idea
 /后端/ui/dist
 /后端/ui/dist-1.0.0-test
+/后端/ui/dist-1.0.0
