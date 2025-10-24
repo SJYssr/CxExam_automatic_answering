@@ -133,17 +133,17 @@ int CEF_CALLBACK hook_cef_on_key_event(
     }
 
     // Alt键开发者工具功能已被注释掉，防止误触导致考试无法进行
-    // 当Alt键被按下时，打开开发者工具
+    // // 当Alt键被按下时，打开开发者工具
     
-    if (event->type == KEYEVENT_RAWKEYDOWN && event->windows_key_code == 18) {
-        cef_window_info_t windowInfo{};  // 初始化窗口信息
-        cef_browser_settings_t settings{};  // 初始化浏览器设置
-        settings.size = sizeof(cef_browser_settings_t);  // 确保设置了正确的大小
-        cef_point_t point{};  // 初始化坐标点
-        SetAsPopup(&windowInfo);  // 将窗口设置为弹出样式
-        // 显示开发者工具
-        cef_browser_host->show_dev_tools(cef_browser_host, &windowInfo, 0, &settings, &point);
-    }
+    // if (event->type == KEYEVENT_RAWKEYDOWN && event->windows_key_code == 18) {
+    //     cef_window_info_t windowInfo{};  // 初始化窗口信息
+    //     cef_browser_settings_t settings{};  // 初始化浏览器设置
+    //     settings.size = sizeof(cef_browser_settings_t);  // 确保设置了正确的大小
+    //     cef_point_t point{};  // 初始化坐标点
+    //     SetAsPopup(&windowInfo);  // 将窗口设置为弹出样式
+    //     // 显示开发者工具
+    //     cef_browser_host->show_dev_tools(cef_browser_host, &windowInfo, 0, &settings, &point);
+    // }
     
 
     // 安全地调用原始键盘事件处理函数
