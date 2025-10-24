@@ -11,11 +11,10 @@ const logger = require('./logger');
 const DEEPSEEK_API_KEY = 'sk-9951e77313c344b5907f99ae4db45e26';
 
 // 登录状态管理
-let loginStatus = {
+const loginStatus = {
     isLoggedIn: false,
     token: null,
-    lastLoginTime: null,
-    aiAccessEnabled: false  // AI调用权限状态
+    lastLoginTime: null
 };
 
 // 获取缓存token的函数（已弃用，保留函数结构）
@@ -28,26 +27,17 @@ function getCachedToken() {
 function validateToken() {
     // 真正的token验证：检查token是否有效（非空、有内容）
     if (loginStatus.token && loginStatus.token.trim() && loginStatus.token.length > 10) {
-        loginStatus.aiAccessEnabled = true;
         loginStatus.isLoggedIn = true; // 确保登录状态同步
-        logger.info('[验证] 验证通过，AI调用权限已开启');
+        logger.info('[验证] 验证通过');
         return true;
     } else {
-        loginStatus.aiAccessEnabled = false;
         loginStatus.isLoggedIn = false; // 确保登录状态同步
-        logger.info('[验证] 验证失败，AI调用权限已关闭');
+        logger.info('[验证] 验证失败');
         return false;
     }
 }
 
-// AI调用权限验证中间件
-function requireAIAccess(req, res, next) {
-    // 移除登录限制，AI调用权限始终启用
-    req.aiAccessEnabled = true;
-    
-    logger.info('[验证] AI调用权限已启用（无登录限制）');
-    next();
-}
+
 
 // 服务器配置
 const PORT = 3000;
@@ -699,7 +689,7 @@ app.get('/api/login-status', (req, res) => {
 });
 
 // 获取AI答案的API端点
-app.post('/api/get-answer', requireAIAccess, async (req, res) => {
+app.post('/api/get-answer', async (req, res) => {
     try {
         const { question, options, questionType } = req.body;
         
@@ -714,7 +704,7 @@ app.post('/api/get-answer', requireAIAccess, async (req, res) => {
         // 处理中文字符显示问题，使用ASCII字符显示题目长度
         logger.info(`[答题] 处理题目: 长度${question.length}字符`);
         
-        // 第一步：先在本地题库缓存中搜索匹配的题目（无论权限验证是否通过）
+        // 第一步：先在本地题库缓存中搜索匹配的题目
         const cachedResult = searchInTikuCache(question, options);
         if (cachedResult) {
             logger.info(`[题库检索] 使用题库答案: ${cachedResult.answer}`);
@@ -727,17 +717,7 @@ app.post('/api/get-answer', requireAIAccess, async (req, res) => {
             });
         }
         
-        // 第二步：如果本地题库没有找到答案，检查AI调用权限
-        if (!req.aiAccessEnabled) {
-            logger.info(`[权限验证] AI调用权限未通过，无法调用DeepSeek`);
-            return res.status(403).json({
-                error: true,
-                message: 'AI调用权限验证失败，且本地题库中未找到匹配答案',
-                fallbackToLocal: true
-            });
-        }
-        
-        // 第三步：权限验证通过，调用AI解答
+        // 第二步：如果本地题库没有找到答案，直接调用AI解答
         
         if (!DEEPSEEK_API_KEY) {
             return res.status(500).json({ 
@@ -826,7 +806,7 @@ app.post('/api/get-answer', requireAIAccess, async (req, res) => {
 });
 
 // 批量获取AI答案的API端点
-app.post('/api/get-batch-answers', requireAIAccess, async (req, res) => {
+app.post('/api/get-batch-answers', async (req, res) => {
     try {
         const { questions } = req.body;
         
@@ -841,7 +821,7 @@ app.post('/api/get-batch-answers', requireAIAccess, async (req, res) => {
         
         const answerPromises = questions.map(async (q, index) => {
             try {
-                // 第一步：先在本地题库缓存中搜索匹配的题目（无论权限验证是否通过）
+                // 第一步：先在本地题库缓存中搜索匹配的题目
                 const cachedResult = searchInTikuCache(q.question, q.options);
                 if (cachedResult) {
                     logger.info(`[题库检索] 题目 ${index + 1} 使用题库答案: ${cachedResult.answer}`);
@@ -855,18 +835,7 @@ app.post('/api/get-batch-answers', requireAIAccess, async (req, res) => {
                     };
                 }
                 
-                // 第二步：如果本地题库没有找到答案，检查AI调用权限
-                if (!req.aiAccessEnabled) {
-                    logger.info(`[权限验证] 题目 ${index + 1} AI调用权限未通过，无法调用DeepSeek`);
-                    return {
-                        questionHash: q.questionHash,
-                        error: true,
-                        message: 'AI调用权限验证失败，且本地题库中未找到匹配答案',
-                        fallbackToLocal: true
-                    };
-                }
-                
-                // 第三步：权限验证通过，检查API Key配置
+                // 第二步：如果本地题库没有找到答案，检查API Key配置
                 if (!DEEPSEEK_API_KEY) {
                     return {
                         questionHash: q.questionHash,
@@ -875,7 +844,7 @@ app.post('/api/get-batch-answers', requireAIAccess, async (req, res) => {
                     };
                 }
 
-                // 第四步：直接调用AI解答（不通过API端点，避免权限验证绕过）
+                // 第二步：直接调用AI解答
                 const aiAnswer = await getAIAnswer(q.question, q.options, q.questionType);
                 return {
                     questionHash: q.questionHash,

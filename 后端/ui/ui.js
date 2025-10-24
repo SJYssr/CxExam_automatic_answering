@@ -426,8 +426,6 @@ function sendLoginStatusToBackend(isLoggedIn, token) {
         console.log(`[登录状态] 发送成功: ${result.message}`);
       } else {
         console.log(`[登录状态] 发送失败: ${result.message}`);
-        // 登录失败时，确保AI调用权限已关闭
-        console.log('[验证] 登录失败，AI调用权限已关闭');
       }
     })
     .catch(error => {
