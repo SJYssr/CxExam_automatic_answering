@@ -89,7 +89,6 @@ async function executeLoginProcess() {
         
         // 3. 处理登录结果
         if (loginResult.success && loginResult.isToken && loginResult.token) {
-            console.log('登录成功');
             console.log(`Token: ${loginResult.token}`);
             
             // 登录成功后获取到期时间
@@ -116,14 +115,21 @@ async function executeLoginProcess() {
                 if (versionResult.success) {
                     const remoteVersionName = versionResult.versionName || versionResult.data;
                     
+                    // 调试信息：显示实际获取到的版本号名称
+                    console.log(`[调试] 本地版本号名称: "${LocalVersion}"`);
+                    console.log(`[调试] 远程版本号名称: "${remoteVersionName}"`);
+                    console.log(`[调试] 版本对比结果: ${remoteVersionName !== LocalVersion ? '有新版本' : '版本相同'}`);
+                    
                     // 版本对比
                     if (remoteVersionName !== LocalVersion) {
+                        console.log('有新版本');
                         console.log(`最新版本: ${remoteVersionName}`);
                         console.log('请及时更新软件以获得更好的体验!');
                         loginResult.hasNewVersion = true;
                         loginResult.remoteVersion = remoteVersionName;
                         loginResult.localVersion = LocalVersion;
                     } else {
+                        console.log('登录成功');
                         console.log('当前已是最新版本');
                         loginResult.hasNewVersion = false;
                     }

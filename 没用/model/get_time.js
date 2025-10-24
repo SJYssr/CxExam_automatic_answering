@@ -1,8 +1,42 @@
 const { formatError } = require('./error_code'); // 从error_code模块导入formatError函数
-const {Card} = require('../config')//全局变量定义，从config模块导入Card
+const fs = require('fs');
+const path = require('path');
 
-// 软件标识（直接写入）
-const Softid = '6G6G7V8C2T9L9U8A';
+/**
+ * 动态获取配置信息
+ * @returns {Object} 配置对象
+ */
+function getConfig() {
+    try {
+        // 尝试从当前目录的config.json读取
+        const configPath = path.join(process.cwd(), 'config.json');
+        if (fs.existsSync(configPath)) {
+            const configContent = fs.readFileSync(configPath, 'utf8');
+            return JSON.parse(configContent);
+        }
+        
+        // 如果当前目录没有，尝试从上级目录读取
+        const parentConfigPath = path.join(process.cwd(), '..', 'config.json');
+        if (fs.existsSync(parentConfigPath)) {
+            const configContent = fs.readFileSync(parentConfigPath, 'utf8');
+            return JSON.parse(configContent);
+        }
+        
+        // 如果都没有找到，返回默认值
+        return {
+            Softid: '6G6G7V8C2T9L9U8A',
+            Card: 'default_card',
+            Version: '1.0.0'
+        };
+    } catch (error) {
+        console.error('读取配置文件失败:', error);
+        return {
+            Softid: '6G6G7V8C2T9L9U8A',
+            Card: 'default_card',
+            Version: '1.0.0'
+        };
+    }
+}
 
 
 /**
@@ -216,7 +250,9 @@ async function getExpireTime(softid, userName, userPwd = '') {
  */
 async function getExpireTimeWithGlobalVars() {
     const fetcher = new TimeFetcher();
-    return await fetcher.getExpireTime(Softid, Card, '');
+    const config = getConfig(); // 动态获取配置
+    // 使用硬编码的Softid值（6G6G7V8C2T9L9U8A），因为config.json中可能没有Softid字段
+    return await fetcher.getExpireTime('6G6G7V8C2T9L9U8A', config.Card, '');
 }
 
 /**
@@ -233,9 +269,7 @@ module.exports = {
     TimeFetcher,
     getExpireTime,
     getExpireTimeWithGlobalVars,
-    checkEndpointStatus,
-    Softid,
-    Card
+    checkEndpointStatus
 };
 
 // 如果直接运行此文件，则自动取到期时间并输出结果

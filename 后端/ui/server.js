@@ -42,14 +42,10 @@ function validateToken() {
 
 // AI调用权限验证中间件
 function requireAIAccess(req, res, next) {
-    // 直接使用登录时设置的权限状态，不再每次验证
-    req.aiAccessEnabled = loginStatus.aiAccessEnabled;
+    // 移除登录限制，AI调用权限始终启用
+    req.aiAccessEnabled = true;
     
-    if (req.aiAccessEnabled) {
-        logger.info('[验证] AI调用权限已启用');
-    } else {
-        logger.info('[验证] AI调用权限未启用，仅使用本地题库');
-    }
+    logger.info('[验证] AI调用权限已启用（无登录限制）');
     next();
 }
 
@@ -240,12 +236,7 @@ async function getAIAnswer(question, options, questionType) {
 4. 质量要求：答案要准确、完整、逻辑清晰，避免口语化表达
 
 【示例格式】
-核心观点：人工智能是模拟人类智能的技术。
-详细阐述：
-1. 通过算法模拟人类思维过程
-2. 数据分析帮助机器学习和决策
-3. 能够处理复杂任务和模式识别
-总结：人工智能技术正在改变人类生活和工作方式。
+核心观点：人工智能是模拟人类智能的技术。    详细阐述：1. 通过算法模拟人类思维过程2. 数据分析帮助机器学习和决策3. 能够处理复杂任务和模式识别     总结：人工智能技术正在改变人类生活和工作方式。
 
 请根据以上要求，给出专业、准确的简答题答案：`;
     } else {
@@ -660,10 +651,10 @@ app.post('/api/login-status', (req, res) => {
             const isValid = validateToken();
             
             if (isValid) {
-                logger.info('[验证] 登录成功，AI调用权限已开启');
+                logger.info('[验证] 登录成功');
                 res.json({
                     success: true,
-                    message: '登录状态更新成功，AI调用权限已开启'
+                    message: '登录状态更新成功'
                 });
             } else {
                 logger.info('[验证] 登录失败');
@@ -682,7 +673,7 @@ app.post('/api/login-status', (req, res) => {
             logger.info('[登录状态] 登录状态已重置');
             res.json({
                 success: false,
-                message: '登录失败，AI调用权限已关闭'
+                message: '登录失败'
             });
         }
     } catch (error) {

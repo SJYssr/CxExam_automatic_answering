@@ -254,32 +254,39 @@ document.addEventListener('DOMContentLoaded', () => {
                     
                     window.autoLogin().then(loginResult => {
                         if (loginResult.success) {
-                            // 登录成功
-                            loginStatus.textContent = '登录成功';
-                            loginStatus.style.color = '#28a745'; // 绿色表示成功
-                            
-                            // 显示登录结果信息
-                            if (loginResult.output) {
-                                const lines = loginResult.output.split('\n');
-                                let statusText = '登录成功';
+                            // 检查是否有新版本
+                            if (loginResult.hasNewVersion) {
+                                // 有新版本时只显示更新提示，不显示登录成功
+                                loginStatus.textContent = '有新版本请更新';
+                                loginStatus.style.color = '#ffa500'; // 橙色表示需要更新
+                            } else {
+                                // 版本一致时显示登录成功
+                                loginStatus.textContent = '登录成功';
+                                loginStatus.style.color = '#28a745'; // 绿色表示成功
                                 
-                                // 提取关键信息
-                                for (const line of lines) {
-                                    if (line.includes('到期时间:')) {
-                                        statusText += ' | ' + line.trim();
-                                    } else if (line.includes('最新版本:')) {
-                                        statusText += ' | ' + line.trim();
-                                    } else if (line.includes('当前已是最新版本')) {
-                                        statusText += ' | 当前已是最新版本';
+                                // 显示登录结果信息
+                                if (loginResult.output) {
+                                    const lines = loginResult.output.split('\n');
+                                    let statusText = '登录成功';
+                                    
+                                    // 提取关键信息
+                                    for (const line of lines) {
+                                        if (line.includes('到期时间:')) {
+                                            statusText += ' | ' + line.trim();
+                                        } else if (line.includes('最新版本:')) {
+                                            statusText += ' | ' + line.trim();
+                                        } else if (line.includes('当前已是最新版本')) {
+                                            statusText += ' | 当前已是最新版本';
+                                        }
                                     }
+                                    
+                                    // 如果有到期时间信息，优先显示到期时间
+                                    if (loginResult.expireTime) {
+                                        statusText = '登录成功 | 到期时间: ' + loginResult.expireTime;
+                                    }
+                                    
+                                    loginStatus.textContent = statusText;
                                 }
-                                
-                                // 如果有到期时间信息，优先显示到期时间
-                                if (loginResult.expireTime) {
-                                    statusText = '登录成功 | 到期时间: ' + loginResult.expireTime;
-                                }
-                                
-                                loginStatus.textContent = statusText;
                             }
                         } else {
                             // 登录失败
@@ -344,41 +351,60 @@ document.addEventListener('DOMContentLoaded', () => {
                             window.autoLogin().then(loginResult => {
                                 if (loginResult.success) {
                                     if (loginStatus) {
-                                        loginStatus.textContent = '登录成功';
-                                        loginStatus.style.color = '#28a745';
-                                        
-                                        // 提取登录结果中的详细信息
-                                        const lines = loginResult.output.split('\n');
-                                        let loginInfo = '登录成功';
-                                        
-                                        // 优先使用到期时间信息
-                                        if (loginResult.expireTime) {
-                                            loginInfo = '登录成功 | 到期时间: ' + loginResult.expireTime;
+                                        // 检查是否有新版本
+                                        if (loginResult.hasNewVersion) {
+                                            // 有新版本时只显示更新提示，不显示登录成功
+                                            loginStatus.textContent = '有新版本请更新';
+                                            loginStatus.style.color = '#ffa500'; // 橙色表示需要更新
+                                            
+                                            // 有新版本时清除token状态
+                                            currentToken = null;
+                                            updateInjectButtonState();
                                         } else {
-                                            for (const line of lines) {
-                                                if (line.includes('到期时间:')) {
-                                                    loginInfo += ' | ' + line.trim();
-                                                } else if (line.includes('当前已是最新版本') || line.includes('有新版本')) {
-                                                    loginInfo += ' | ' + line.trim();
+                                            loginStatus.textContent = '登录成功';
+                                            loginStatus.style.color = '#28a745';
+                                            
+                                            // 提取登录结果中的详细信息
+                                            const lines = loginResult.output.split('\n');
+                                            let loginInfo = '登录成功';
+                                            
+                                            // 优先使用到期时间信息
+                                            if (loginResult.expireTime) {
+                                                loginInfo = '登录成功 | 到期时间: ' + loginResult.expireTime;
+                                            } else {
+                                                for (const line of lines) {
+                                                    if (line.includes('到期时间:')) {
+                                                        loginInfo += ' | ' + line.trim();
+                                                    } else if (line.includes('当前已是最新版本') || line.includes('有新版本')) {
+                                                        loginInfo += ' | ' + line.trim();
+                                                    }
                                                 }
                                             }
-                                        }
-                                        
-                                        // 如果登录成功且有token，显示token保存状态
-                                        if (loginResult.token) {
-                                            if (loginResult.tokenSaved) {
-                                                loginInfo += ' | Token已缓存';
-                                            } else if (loginResult.tokenSaveError) {
-                                                loginInfo += ' | Token缓存失败';
+                                            
+                                            // 如果登录成功且有token，显示token保存状态并更新按钮状态
+                                            if (loginResult.token) {
+                                                // 动态更新token状态
+                                                currentToken = loginResult.token;
+                                                updateInjectButtonState();
+                                                
+                                                if (loginResult.tokenSaved) {
+                                                    loginInfo += ' | Token已缓存';
+                                                } else if (loginResult.tokenSaveError) {
+                                                    loginInfo += ' | Token缓存失败';
+                                                }
                                             }
+                                            
+                                            loginStatus.textContent = loginInfo;
                                         }
-                                        
-                                        loginStatus.textContent = loginInfo;
                                     }
                                 } else {
                                     if (loginStatus) {
                                         loginStatus.textContent = '登录失败';
                                         loginStatus.style.color = '#dc3545';
+                                        
+                                        // 登录失败时清除token状态
+                                        currentToken = null;
+                                        updateInjectButtonState();
                                         
                                         // 显示错误信息
                                         if (loginResult.errorOutput) {
@@ -401,6 +427,10 @@ document.addEventListener('DOMContentLoaded', () => {
                                 if (loginStatus) {
                                     loginStatus.textContent = '登录异常: ' + error.message;
                                     loginStatus.style.color = '#dc3545';
+                                    
+                                    // 登录异常时清除token状态
+                                    currentToken = null;
+                                    updateInjectButtonState();
                                 }
                             });
                         } else {
@@ -441,6 +471,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // 注入按钮状态控制逻辑
     const injectButton = document.querySelector('.inject-button');
     let isAutoStartPrevented = false; // 防止自动触发注入的标志
+    let currentToken = null; // 存储当前token状态
     
     if (targetPathInput && injectButton) {
         // 路径验证函数：检查是否包含CXExam.exe
@@ -448,21 +479,21 @@ document.addEventListener('DOMContentLoaded', () => {
             return path && path.trim() !== '' && path.includes('CXExam.exe');
         }
         
-        // 更新注入按钮状态
+        // 更新注入按钮状态 - 动态检查token状态
         function updateInjectButtonState() {
-            const path = targetPathInput.value;
-            const isValid = validateTargetPath(path);
+            // 动态检查是否有有效的token
+            const hasValidToken = currentToken !== null && currentToken.trim() !== '';
             
-            if (isValid) {
-                // 路径有效：启用按钮
+            if (hasValidToken) {
+                // 有token时启用按钮
                 injectButton.disabled = false;
                 injectButton.style.opacity = '1';
                 injectButton.style.cursor = 'pointer';
                 injectButton.style.backgroundColor = '#007bff';
             } else {
-                // 路径无效：禁用按钮
+                // 没有token时禁用按钮
                 injectButton.disabled = true;
-                injectButton.style.opacity = '0.6';
+                injectButton.style.opacity = '0.5';
                 injectButton.style.cursor = 'not-allowed';
                 injectButton.style.backgroundColor = '#6c757d';
             }
@@ -471,14 +502,14 @@ document.addEventListener('DOMContentLoaded', () => {
         // 初始状态检查
         updateInjectButtonState();
         
-        // 监听目标路径输入框变化
+        // 监听目标路径输入框变化（不再需要验证路径）
         targetPathInput.addEventListener('input', updateInjectButtonState);
         targetPathInput.addEventListener('change', updateInjectButtonState);
         
         // 监听文件选择按钮的路径更新
         if (pathSelectButton) {
             pathSelectButton.addEventListener('click', () => {
-                // 文件选择完成后，延迟检查按钮状态（等待路径填充）
+                // 文件选择完成后，延迟更新按钮状态
                 setTimeout(updateInjectButtonState, 100);
             });
         }
@@ -491,52 +522,51 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             
             const path = targetPathInput.value;
-            if (validateTargetPath(path)) {
-                console.log('开始注入到:', path);
+            // 移除路径验证条件，按钮始终可以点击
+            console.log('开始注入到:', path);
+            
+            // 禁用按钮防止重复点击
+            injectButton.disabled = true;
+            injectButton.textContent = '注入中...';
+            
+            try {
+                // 调用后端API复制winmm.dll文件
+                const result = await window.injectWinmmDll(path);
                 
-                // 禁用按钮防止重复点击
-                injectButton.disabled = true;
-                injectButton.textContent = '注入中...';
-                
-                try {
-                    // 调用后端API复制winmm.dll文件
-                    const result = await window.injectWinmmDll(path);
+                if (result.success) {
+                    console.log('注入成功:', result.message);
+                    // 程序已经启动成功，立即显示成功状态
+                    injectButton.textContent = '注入并启动成功';
+                    injectButton.style.backgroundColor = '#28a745'; // 绿色表示成功
                     
-                    if (result.success) {
-                        console.log('注入成功:', result.message);
-                        // 程序已经启动成功，立即显示成功状态
-                        injectButton.textContent = '注入并启动成功';
-                        injectButton.style.backgroundColor = '#28a745'; // 绿色表示成功
-                        
-                        // 成功后再隐藏窗口，让用户看到成功状态
-                        setTimeout(() => {
-                            window.hideWindow();
-                            console.log('窗口已隐藏，开始监控CXExam.exe进程...');
-                        }, 1000); // 1秒后隐藏窗口
-                    } else {
-                        console.error('注入失败:', result.error);
-                        injectButton.textContent = '注入失败';
-                        injectButton.style.backgroundColor = '#dc3545'; // 红色表示失败
-                        
-                        // 3秒后恢复按钮状态（失败时不隐藏窗口）
-                        setTimeout(() => {
-                            injectButton.textContent = '注入';
-                            injectButton.style.backgroundColor = '#007bff';
-                            updateInjectButtonState(); // 重新验证按钮状态
-                        }, 3000);
-                    }
-                } catch (error) {
-                    console.error('注入异常:', error);
-                    injectButton.textContent = '注入异常';
-                    injectButton.style.backgroundColor = '#dc3545';
+                    // 成功后再隐藏窗口，让用户看到成功状态
+                    setTimeout(() => {
+                        window.hideWindow();
+                        console.log('窗口已隐藏，开始监控CXExam.exe进程...');
+                    }, 1000); // 1秒后隐藏窗口
+                } else {
+                    console.error('注入失败:', result.error);
+                    injectButton.textContent = '注入失败';
+                    injectButton.style.backgroundColor = '#dc3545'; // 红色表示失败
                     
-                    // 3秒后恢复按钮状态（异常时不隐藏窗口）
+                    // 3秒后恢复按钮状态（失败时不隐藏窗口）
                     setTimeout(() => {
                         injectButton.textContent = '注入';
                         injectButton.style.backgroundColor = '#007bff';
                         updateInjectButtonState(); // 重新验证按钮状态
                     }, 3000);
                 }
+            } catch (error) {
+                console.error('注入异常:', error);
+                injectButton.textContent = '注入异常';
+                injectButton.style.backgroundColor = '#dc3545';
+                
+                // 3秒后恢复按钮状态（异常时不隐藏窗口）
+                setTimeout(() => {
+                    injectButton.textContent = '注入';
+                    injectButton.style.backgroundColor = '#007bff';
+                    updateInjectButtonState(); // 重新验证按钮状态
+                }, 3000);
             }
         });
     }

@@ -291,22 +291,38 @@ ipcMain.handle('auto-login', async () => {
       
       // 处理登录结果 - 真正的登录成功应该是收到了有效的token
       if (loginResult.success && loginResult.isToken && loginResult.token) {
-        console.log('自动登录成功');
-        console.log(`Token: ${loginResult.token}`);
-        
-        // 发送登录状态到后端
-        result.token = loginResult.token;
-        sendLoginStatusToBackend(true, loginResult.token);
-        
-        // 返回登录结果
-        result.success = true;
-        result.exitCode = 0;
-        result.output = loginResult.message || '登录成功';
-        result.fullOutput = loginResult.message || '登录成功';
-        result.expireTime = loginResult.expireTime;
-        result.hasNewVersion = loginResult.hasNewVersion;
-        result.remoteVersion = loginResult.remoteVersion;
-        result.localVersion = loginResult.localVersion;
+        // 检查是否有新版本
+        if (loginResult.hasNewVersion) {
+          // 有新版本时只显示更新提示，不显示任何登录成功信息
+          console.log('有新版本请更新');
+          console.log(`最新版本: ${loginResult.remoteVersion}`);
+          
+          // 设置结果为特殊状态，表示需要更新
+          result.success = true; // 改为true，表示版本检测成功
+          result.exitCode = -2;
+          result.output = '有新版本请更新';
+          result.fullOutput = `有新版本请更新。当前版本: ${loginResult.localVersion}, 最新版本: ${loginResult.remoteVersion}`;
+          result.hasNewVersion = true;
+          result.remoteVersion = loginResult.remoteVersion;
+          result.localVersion = loginResult.localVersion;
+        } else {
+          // 版本一致时显示登录成功并发送token到后端
+          console.log('登录成功');
+          console.log('当前已是最新版本');
+          
+          result.token = loginResult.token;
+          sendLoginStatusToBackend(true, loginResult.token);
+          
+          // 返回登录结果
+          result.success = true;
+          result.exitCode = 0;
+          result.output = loginResult.message || '登录成功';
+          result.fullOutput = loginResult.message || '登录成功';
+          result.expireTime = loginResult.expireTime;
+          result.hasNewVersion = loginResult.hasNewVersion;
+          result.remoteVersion = loginResult.remoteVersion;
+          result.localVersion = loginResult.localVersion;
+        }
       } else {
         console.log('自动登录失败');
         
