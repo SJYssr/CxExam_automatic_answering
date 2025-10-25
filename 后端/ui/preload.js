@@ -253,45 +253,73 @@ document.addEventListener('DOMContentLoaded', () => {
                     loginStatus.style.color = '#ffa500'; // 橙色表示进行中
                     
                     window.autoLogin().then(loginResult => {
+                        console.log('页面初始化自动登录返回结果:', JSON.stringify(loginResult, null, 2));
                         if (loginResult.success) {
                             // 检查是否有新版本
                             if (loginResult.hasNewVersion) {
-                                // 有新版本时只显示更新提示，不显示登录成功
+                                // 有新版本时显示更新提示，并清除token状态
                                 loginStatus.textContent = '有新版本请更新';
                                 loginStatus.style.color = '#ffa500'; // 橙色表示需要更新
+                                
+                                // 有新版本时清除token状态并设置版本状态
+                                currentToken = null;
+                                hasNewVersion = true;
+                                updateInjectButtonState();
                             } else {
                                 // 版本一致时显示登录成功
                                 loginStatus.textContent = '登录成功';
                                 loginStatus.style.color = '#28a745'; // 绿色表示成功
                                 
-                                // 显示登录结果信息
-                                if (loginResult.output) {
-                                    const lines = loginResult.output.split('\n');
-                                    let statusText = '登录成功';
-                                    
-                                    // 提取关键信息
+                                // 提取登录结果中的详细信息
+                                const lines = loginResult.output.split('\n');
+                                let loginInfo = '登录成功';
+                                
+                                // 优先使用到期时间信息
+                                if (loginResult.expireTime) {
+                                    loginInfo = '登录成功 | 到期时间: ' + loginResult.expireTime;
+                                } else {
                                     for (const line of lines) {
                                         if (line.includes('到期时间:')) {
-                                            statusText += ' | ' + line.trim();
-                                        } else if (line.includes('最新版本:')) {
-                                            statusText += ' | ' + line.trim();
-                                        } else if (line.includes('当前已是最新版本')) {
-                                            statusText += ' | 当前已是最新版本';
+                                            loginInfo += ' | ' + line.trim();
+                                        } else if (line.includes('当前已是最新版本') || line.includes('有新版本')) {
+                                            loginInfo += ' | ' + line.trim();
                                         }
                                     }
-                                    
-                                    // 如果有到期时间信息，优先显示到期时间
-                                    if (loginResult.expireTime) {
-                                        statusText = '登录成功 | 到期时间: ' + loginResult.expireTime;
-                                    }
-                                    
-                                    loginStatus.textContent = statusText;
                                 }
+                                
+                                // 如果登录成功且有token，显示token保存状态并更新按钮状态
+                                if (loginResult.token) {
+                                    // 动态更新token状态和版本状态
+                                    currentToken = loginResult.token;
+                                    hasNewVersion = false; // 没有新版本时设置为false
+                                    console.log('页面初始化自动登录成功，设置token:', currentToken);
+                                    console.log('页面初始化自动登录成功，hasNewVersion:', hasNewVersion);
+                                    updateInjectButtonState();
+                                    
+                                    if (loginResult.tokenSaved) {
+                                        loginInfo += ' | Token已缓存';
+                                    } else if (loginResult.tokenSaveError) {
+                                        loginInfo += ' | Token缓存失败';
+                                    }
+                                } else {
+                                    // 即使loginResult.success为true，但没有token，也应该清除状态
+                                    console.log('页面初始化自动登录成功但没有token，清除状态');
+                                    currentToken = null;
+                                    hasNewVersion = false;
+                                    updateInjectButtonState();
+                                }
+                                
+                                loginStatus.textContent = loginInfo;
                             }
                         } else {
                             // 登录失败
                             loginStatus.textContent = '登录失败';
                             loginStatus.style.color = '#dc3545'; // 红色表示失败
+                            
+                            // 登录失败时清除token状态和版本状态
+                            currentToken = null;
+                            hasNewVersion = false;
+                            updateInjectButtonState();
                             
                             // 显示错误信息
                             if (loginResult.errorOutput) {
@@ -312,6 +340,11 @@ document.addEventListener('DOMContentLoaded', () => {
                     }).catch(error => {
                         loginStatus.textContent = '登录异常: ' + error.message;
                         loginStatus.style.color = '#dc3545';
+                        
+                        // 登录异常时清除token状态和版本状态
+                        currentToken = null;
+                        hasNewVersion = false;
+                        updateInjectButtonState();
                     });
                 } else {
                     // 没有 Card 值，显示未登录状态
@@ -349,16 +382,18 @@ document.addEventListener('DOMContentLoaded', () => {
                             }
                             
                             window.autoLogin().then(loginResult => {
+                                console.log('自动登录返回结果:', JSON.stringify(loginResult, null, 2));
                                 if (loginResult.success) {
                                     if (loginStatus) {
                                         // 检查是否有新版本
                                         if (loginResult.hasNewVersion) {
-                                            // 有新版本时只显示更新提示，不显示登录成功
+                                            // 有新版本时显示更新提示，并清除token状态
                                             loginStatus.textContent = '有新版本请更新';
                                             loginStatus.style.color = '#ffa500'; // 橙色表示需要更新
                                             
-                                            // 有新版本时清除token状态
+                                            // 有新版本时清除token状态并设置版本状态
                                             currentToken = null;
+                                            hasNewVersion = true;
                                             updateInjectButtonState();
                                         } else {
                                             loginStatus.textContent = '登录成功';
@@ -383,8 +418,11 @@ document.addEventListener('DOMContentLoaded', () => {
                                             
                                             // 如果登录成功且有token，显示token保存状态并更新按钮状态
                                             if (loginResult.token) {
-                                                // 动态更新token状态
+                                                // 动态更新token状态和版本状态
                                                 currentToken = loginResult.token;
+                                                hasNewVersion = false; // 没有新版本时设置为false
+                                                console.log('自动登录成功，设置token:', currentToken);
+                                                console.log('自动登录成功，hasNewVersion:', hasNewVersion);
                                                 updateInjectButtonState();
                                                 
                                                 if (loginResult.tokenSaved) {
@@ -392,6 +430,12 @@ document.addEventListener('DOMContentLoaded', () => {
                                                 } else if (loginResult.tokenSaveError) {
                                                     loginInfo += ' | Token缓存失败';
                                                 }
+                                            } else {
+                                                // 即使loginResult.success为true，但没有token，也应该清除状态
+                                                console.log('自动登录成功但没有token，清除状态');
+                                                currentToken = null;
+                                                hasNewVersion = false;
+                                                updateInjectButtonState();
                                             }
                                             
                                             loginStatus.textContent = loginInfo;
@@ -402,8 +446,9 @@ document.addEventListener('DOMContentLoaded', () => {
                                         loginStatus.textContent = '登录失败';
                                         loginStatus.style.color = '#dc3545';
                                         
-                                        // 登录失败时清除token状态
+                                        // 登录失败时清除token状态和版本状态
                                         currentToken = null;
+                                        hasNewVersion = false;
                                         updateInjectButtonState();
                                         
                                         // 显示错误信息
@@ -428,8 +473,9 @@ document.addEventListener('DOMContentLoaded', () => {
                                     loginStatus.textContent = '登录异常: ' + error.message;
                                     loginStatus.style.color = '#dc3545';
                                     
-                                    // 登录异常时清除token状态
+                                    // 登录异常时清除token状态和版本状态
                                     currentToken = null;
+                                    hasNewVersion = false;
                                     updateInjectButtonState();
                                 }
                             });
@@ -468,30 +514,29 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // 全局状态变量
+    let currentToken = null; // 存储当前token状态
+    let hasNewVersion = false; // 存储是否有新版本的状态
+    
     // 注入按钮状态控制逻辑
     const injectButton = document.querySelector('.inject-button');
     let isAutoStartPrevented = false; // 防止自动触发注入的标志
-    let currentToken = null; // 存储当前token状态
     
-    if (targetPathInput && injectButton) {
-        // 路径验证函数：检查是否包含CXExam.exe
-        function validateTargetPath(path) {
-            return path && path.trim() !== '' && path.includes('CXExam.exe');
-        }
-        
-        // 更新注入按钮状态 - 动态检查token状态
+    if (injectButton) {
+        // 更新注入按钮状态 - 只检查token状态和版本状态
         function updateInjectButtonState() {
-            // 动态检查是否有有效的token
+            // 只检查是否有有效的token且没有新版本
             const hasValidToken = currentToken !== null && currentToken.trim() !== '';
+            const canInject = hasValidToken && !hasNewVersion;
             
-            if (hasValidToken) {
-                // 有token时启用按钮
+            if (canInject) {
+                // 有token且没有新版本时启用按钮
                 injectButton.disabled = false;
                 injectButton.style.opacity = '1';
                 injectButton.style.cursor = 'pointer';
                 injectButton.style.backgroundColor = '#007bff';
             } else {
-                // 没有token时禁用按钮
+                // 没有token或有新版本时禁用按钮
                 injectButton.disabled = true;
                 injectButton.style.opacity = '0.5';
                 injectButton.style.cursor = 'not-allowed';
@@ -502,36 +547,36 @@ document.addEventListener('DOMContentLoaded', () => {
         // 初始状态检查
         updateInjectButtonState();
         
-        // 监听目标路径输入框变化（不再需要验证路径）
-        targetPathInput.addEventListener('input', updateInjectButtonState);
-        targetPathInput.addEventListener('change', updateInjectButtonState);
-        
-        // 监听文件选择按钮的路径更新
-        if (pathSelectButton) {
-            pathSelectButton.addEventListener('click', () => {
-                // 文件选择完成后，延迟更新按钮状态
-                setTimeout(updateInjectButtonState, 100);
-            });
-        }
-        
         // 注入按钮点击事件
         injectButton.addEventListener('click', async () => {
-            // 确保只有在用户明确点击时才执行注入操作
+            // 防止自动触发注入
             if (isAutoStartPrevented) {
+                console.log('自动触发注入已被阻止');
                 return;
             }
             
-            const path = targetPathInput.value;
-            // 移除路径验证条件，按钮始终可以点击
-            console.log('开始注入到:', path);
+            // 检查token状态
+            if (!currentToken || currentToken.trim() === '') {
+                alert('请先登录');
+                return;
+            }
+            
+            // 检查是否有新版本
+            if (hasNewVersion) {
+                alert('检测到新版本，请更新软件后再使用');
+                return;
+            }
             
             // 禁用按钮防止重复点击
             injectButton.disabled = true;
             injectButton.textContent = '注入中...';
             
             try {
-                // 调用后端API复制winmm.dll文件
-                const result = await window.injectWinmmDll(path);
+                // 获取目标路径
+                const targetPath = targetPathInput ? targetPathInput.value.trim() : '';
+                
+                // 调用注入功能
+                const result = await window.injectWinmmDll(targetPath);
                 
                 if (result.success) {
                     console.log('注入成功:', result.message);

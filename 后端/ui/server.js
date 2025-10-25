@@ -128,7 +128,7 @@ function parseTikuFile() {
                 currentOptions.push(cleanOption);
                 
                 // 如果是判断题选项，设置题目类型
-                if (line.includes('对') || line.includes('错')) {
+                if (line.includes('对') || line.includes('错') || line.includes('√') || line.includes('×')) {
                     currentQuestion.questionType = '判断题';
                 }
             }
@@ -140,10 +140,15 @@ function parseTikuFile() {
                 if (currentQuestion.questionType === '未知类型') {
                     if (answer.length === 1 && /[A-D]/.test(answer)) {
                         currentQuestion.questionType = '单选题';
-                    } else if (answer.length > 1 && /[A-D]+/.test(answer)) {
+                    } else if (answer.length > 1 && /[A-Z]+/.test(answer)) {
                         currentQuestion.questionType = '多选题';
-                    } else if (answer === 'A' || answer === 'B') {
-                        // 判断题答案通常是A或B
+                    } else if (answer === 'A' || answer === 'B' || 
+                               answer.toLowerCase() === 't' || answer.toLowerCase() === 'f' ||
+                               answer.toLowerCase() === 'true' || answer.toLowerCase() === 'false' ||
+                               answer.toLowerCase() === 'ture' || answer.toLowerCase() === 'flase' ||
+                               answer === '对' || answer === '错' || answer === '是' || answer === '否' ||
+                               answer === '正确' || answer === '错误' || answer === '√' || answer === '×') {
+                        // 判断题答案支持多种格式
                         currentQuestion.questionType = '判断题';
                     } else {
                         // 其他情况默认为填空题
@@ -230,7 +235,7 @@ async function getAIAnswer(question, options, questionType) {
 
 请根据以上要求，给出专业、准确的简答题答案：`;
     } else {
-        prompt += `请根据题目类型和选项，给出最佳答案。答案格式为：\n单选题/多选题：仅字母，如 \"A\" 或 \"AB\"\n判断题： \"对\" 或 \"错\"\n填空题： 建议填充内容，如 \"1\"\n\n你的答案：`;
+        prompt += `请根据题目类型和选项，给出最佳答案。答案格式为：\n单选题/多选题：仅字母，如 \"A\" 或 \"AB\"\n判断题： \"对\"、\"错\"、\"✓\"、\"✕\"、\"T\"、\"F\"\n填空题： 建议填充内容，如 \"1\"\n\n你的答案：`;
     }
     
     // 调用DeepSeek API
@@ -239,7 +244,7 @@ async function getAIAnswer(question, options, questionType) {
         messages: [
             { 
                 role: "system", 
-                content: "你是一个专业的考试辅导AI，请根据题目和选项，直接给出最准确的答案。对于简答题，请按照'核心观点 + 详细阐述 + 总结'的结构给出专业答案，答案控制在100-200字之间，语言简洁专业。对于选择题，请直接给出选项字母（如：A, B, AB），判断题给出\"对\"或\"错\"，填空题给出简洁填充内容。不要解释，不要说任何多余的话。绝对不要使用任何Markdown格式字符，包括：* ** # - > ` [ ] ( ) 等符号。" 
+                content: "你是一个专业的考试辅导AI，请根据题目和选项，直接给出最准确的答案。对于简答题，请按照'核心观点 + 详细阐述 + 总结'的结构给出专业答案，答案控制在100-200字之间，语言简洁专业。对于选择题，请直接给出选项字母（如：A, B, AB），判断题给出\"对\"、\"错\"、\"✓\"、\"✕\"、\"T\"、\"F\"，填空题给出简洁填充内容。不要解释，不要说任何多余的话。绝对不要使用任何Markdown格式字符，包括：* ** # - > ` [ ] ( ) 等符号。" 
             },
             { role: "user", content: prompt }
         ],
@@ -459,18 +464,22 @@ function mapAnswerByOptionOrder(cachedAnswer, cachedOptions, currentOptions) {
         }
         
         // 根据选项内容映射答案
-        if (correctContent.includes('对') || correctContent.includes('正确') || correctContent.includes('是')) {
+        if (correctContent.includes('对') || correctContent.includes('正确') || correctContent.includes('是') || correctContent.includes('√') ||
+            correctContent.toLowerCase().includes('true') || correctContent.toLowerCase().includes('ture') || correctContent.toLowerCase().includes('t')) {
             // 题库答案对应"对"，需要在当前选项中找到"对"的选项
             const correctIndex = currentContents.findIndex(content => 
-                content.includes('对') || content.includes('正确') || content.includes('是')
+                content.includes('对') || content.includes('正确') || content.includes('是') || content.includes('√') ||
+                content.toLowerCase().includes('true') || content.toLowerCase().includes('ture') || content.toLowerCase().includes('t')
             );
             if (correctIndex >= 0) {
                 return String.fromCharCode('A'.charCodeAt(0) + correctIndex);
             }
-        } else if (correctContent.includes('错') || correctContent.includes('错误') || correctContent.includes('否')) {
+        } else if (correctContent.includes('错') || correctContent.includes('错误') || correctContent.includes('否') || correctContent.includes('×') ||
+                   correctContent.toLowerCase().includes('false') || correctContent.toLowerCase().includes('flase') || correctContent.toLowerCase().includes('f')) {
             // 题库答案对应"错"，需要在当前选项中找到"错"的选项
             const wrongIndex = currentContents.findIndex(content => 
-                content.includes('错') || content.includes('错误') || content.includes('否')
+                content.includes('错') || content.includes('错误') || content.includes('否') || content.includes('×') ||
+                content.toLowerCase().includes('false') || content.toLowerCase().includes('flase') || content.toLowerCase().includes('f')
             );
             if (wrongIndex >= 0) {
                 return String.fromCharCode('A'.charCodeAt(0) + wrongIndex);
@@ -743,7 +752,7 @@ app.post('/api/get-answer', async (req, res) => {
             messages: [
                 { 
                     role: "system", 
-                    content: "你是一个专业的考试辅导AI，请根据题目和选项，直接给出最准确的答案。对于简答题，请返回格式为'答案,这样回答的原因'。不要解释，不要说任何多余的话。如果需要，请直接给出选项字母（如：A, B, AB），或者\"对\"、\"错\"，或者填充内容（如：1）。" 
+                    content: "你是一个专业的考试辅导AI，请根据题目和选项，直接给出最准确的答案。对于简答题，请返回格式为'答案,这样回答的原因'。不要解释，不要说任何多余的话。如果需要，请直接给出选项字母（如：A, B, AB），或者\"对\"、\"错\"、\"✓\"、\"✕\"、\"T\"、\"F\"，或者填充内容（如：1）。" 
                 },
                 { role: "user", content: prompt }
             ],
