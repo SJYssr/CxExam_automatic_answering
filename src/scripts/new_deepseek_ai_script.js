@@ -279,7 +279,8 @@
                 });
             } else if (questionType === '判断题') {
                 const optionDivs = question.querySelectorAll('div.answerBg');
-                const isCorrect = aiAnswer.includes('对') || aiAnswer.includes('正确') || aiAnswer.includes('True') || aiAnswer.toLowerCase().includes('true');
+                const isCorrect = aiAnswer.includes('对') || aiAnswer.includes('正确') || aiAnswer.includes('True') || aiAnswer.toLowerCase().includes('true') ||
+                    aiAnswer.includes('√') || aiAnswer.includes('T') || aiAnswer.includes('t');
                 const targetIndex = isCorrect ? 0 : 1; // 对=0, 错=1
 
                 if (targetIndex < optionDivs.length) {
