@@ -16,13 +16,10 @@ ai_test/backend/.env.example
 *.log
 /后端/.idea
 /.idea
-/后端/ui/dist
-/后端/ui/dist-1.0.0-test
-/后端/ui/dist-1.0.0
-/后端/ui/dist-1.0.2
-/后端/ui/dist-1.0.3
 /后端/ui/dist-1.0.4
 /后端/ui/dist-1.0.5
 后端/ui/config.json
 /后端/ui/dist-1.0.6
-/all-AI
+/all-AI/.vs
+/all-AI/out
+/all-AI/md5/build
