@@ -18,15 +18,29 @@ let isExiting = false; // 防止重复退出应用程序的标志
 function createWindow() {
   const win = new BrowserWindow({
     width: 480,
-    height: 580,
+    height: 650, // 增加高度以确保所有内容显示
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'), // 预加载脚本，用于窗口拖拽和控制
       nodeIntegration: true, // 允许在渲染进程中使用 Node.js API
-      contextIsolation: false // 禁用上下文隔离，方便开发
+      contextIsolation: false, // 禁用上下文隔离，方便开发
+      enableRemoteModule: false, // 禁用远程模块
+      webSecurity: false, // 禁用web安全，可能有助于渲染稳定性
+      experimentalFeatures: false // 禁用实验性功能
     },
-    frame: false, // 隐藏窗口边框和标题栏
+    frame: true, // 使用原生窗口边框
     resizable: false, // 禁止调整窗口大小
-    titleBarStyle: 'hidden' // 隐藏标题栏
+    titleBarStyle: 'hiddenInset', // 隐藏标题栏但保留窗口控制按钮
+    transparent: true, // 启用透明窗口
+    vibrancy: 'none', // 禁用毛玻璃效果
+    skipTaskbar: false, // 在任务栏中显示
+    alwaysOnTop: false, // 不总是置顶
+    fullscreenable: false, // 禁止全屏
+    maximizable: false, // 禁止最大化
+    minimizable: false, // 禁止最小化
+    closable: true, // 允许关闭
+    movable: true, // 允许移动
+    focusable: true, // 允许获得焦点
+    autoHideMenuBar: true // 自动隐藏菜单栏
   });
 
   // 处理文件选择对话框
@@ -158,18 +172,7 @@ ipcMain.handle('inject-winmm-dll', async (event, targetPath) => {
     win.setPosition(currentX + deltaX, currentY + deltaY);
   });
   
-  // 窗口控制功能
-ipcMain.on('close-window', () => {
-  win.close();
-});
-
-ipcMain.on('minimize-window', () => {
-  win.minimize();
-});
-
-ipcMain.on('hide-window', () => {
-  win.hide();
-});
+  // 窗口控制功能 - 使用原生窗口，不需要自定义IPC处理
 
   // 窗口加载完成后启动后端服务
   win.webContents.once('did-finish-load', async () => {

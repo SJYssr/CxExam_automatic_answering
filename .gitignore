@@ -23,3 +23,5 @@ ai_test/backend/.env.example
 /后端/ui/dist-1.0.3
 /后端/ui/dist-1.0.4
 /后端/ui/dist-1.0.5
+后端/ui/config.json
+/后端/ui/dist-1.0.6

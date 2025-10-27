@@ -1,6 +1,6 @@
 {
   "name": "CxExam_automatic_answering",
-  "version": "1.0.5",
+  "version": "1.0.6",
   "description": "CxExam_automatic_answering",
   "main": "ui.js",
   "scripts": {
@@ -33,9 +33,9 @@
   "license": "MIT",
   "build": {
     "appId": "com.cxexam.automatic-answering",
-    "productName": "CxExam自动答题1.0.5",
+    "productName": "CxExam自动答题1.0.6",
     "directories": {
-      "output": "dist-1.0.5"
+      "output": "dist-1.0.6"
     },
     "files": [
       "ui.js",
