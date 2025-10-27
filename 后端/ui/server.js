@@ -262,9 +262,8 @@ async function getAIAnswer(question, options, questionType) {
         response.data.choices[0].message && response.data.choices[0].message.content) {
         
         const aiContent = response.data.choices[0].message.content.trim();
+        // 保留完整的AI回答内容，不截断为第一行
         const cleanedAnswer = aiContent
-            .split('\n')[0]
-            .trim()
             .replace(/['"""'.]/g, '')
             .replace(/^\d+\.\s*/, '')
             // 移除所有Markdown格式字符
@@ -770,9 +769,8 @@ app.post('/api/get-answer', async (req, res) => {
             response.data.choices[0].message && response.data.choices[0].message.content) {
             
             const aiContent = response.data.choices[0].message.content.trim();
+            // 保留完整的AI回答内容，不截断为第一行
             const cleanedAnswer = aiContent
-                .split('\n')[0]
-                .trim()
                 .replace(/['"""'.]/g, '')
                 .replace(/^\d+\.\s*/, '');
             

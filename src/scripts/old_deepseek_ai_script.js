@@ -247,11 +247,11 @@
             
             if (data.choices && data.choices.length > 0 && data.choices[0].message && data.choices[0].message.content) {
                 const aiContent = data.choices[0].message.content.trim();
+                // 保留完整的AI回答内容，不截断为第一行
                 const cleanedAnswer = aiContent
-                    .split('\n')[0]
-                    .trim()
                     .replace(/['""'"'.]/g, '')
-                    .replace(/^\d+\.\s*/, '');
+                    .replace(/^\d+\.\s*/, '')
+                    .trim();
                 
                 return cleanedAnswer;
             } else if (data.error) {
