@@ -35,6 +35,7 @@ function createWindow() {
       const result = await dialog.showOpenDialog(win, {
         properties: ['openFile'],
         filters: [
+          { name: '可执行文件', extensions: ['exe'] },
           { name: '所有文件', extensions: ['*'] }
         ]
       });
