@@ -66,66 +66,7 @@ window.autoLogin = async () => {
   }
 };
 
-// 窗口拖拽功能
-let isDragging = false;
-let dragStartPosition = { x: 0, y: 0 };
-
-// 监听拖拽事件
-document.addEventListener('DOMContentLoaded', () => {
-    const draggableHeader = document.getElementById('draggable-header');
-    
-    if (draggableHeader) {
-        draggableHeader.addEventListener('mousedown', (e) => {
-            isDragging = true;
-            dragStartPosition.x = e.screenX;
-            dragStartPosition.y = e.screenY;
-            
-            // 改变鼠标样式
-            draggableHeader.style.cursor = 'grabbing';
-            
-            e.preventDefault();
-        });
-        
-        // 添加悬停效果
-        draggableHeader.addEventListener('mouseenter', () => {
-            if (!isDragging) {
-                draggableHeader.style.cursor = 'grab';
-            }
-        });
-        
-        draggableHeader.addEventListener('mouseleave', () => {
-            if (!isDragging) {
-                draggableHeader.style.cursor = 'default';
-            }
-        });
-    }
-});
-
-// 全局鼠标事件
-window.addEventListener('mousemove', (e) => {
-    if (isDragging) {
-        // 使用屏幕坐标计算移动距离，避免窗口移动导致的坐标变化
-        const deltaX = e.screenX - dragStartPosition.x;
-        const deltaY = e.screenY - dragStartPosition.y;
-        
-        // 发送移动窗口的消息给主进程
-        ipcRenderer.send('move-window', { deltaX, deltaY });
-        
-        // 更新起始位置为当前屏幕位置
-        dragStartPosition.x = e.screenX;
-        dragStartPosition.y = e.screenY;
-    }
-});
-
-window.addEventListener('mouseup', () => {
-    if (isDragging) {
-        isDragging = false;
-        const draggableHeader = document.getElementById('draggable-header');
-        if (draggableHeader) {
-            draggableHeader.style.cursor = 'grab';
-        }
-    }
-});
+// 窗口拖拽功能已禁用 - 窗口不可移动
 
 // 窗口控制功能
 window.closeWindow = () => {
