@@ -127,9 +127,73 @@ window.addEventListener('mouseup', () => {
     }
 });
 
-// 窗口控制功能 - 使用原生窗口，不需要自定义控制
+// 窗口控制功能
+window.closeWindow = () => {
+    ipcRenderer.send('close-window');
+};
 
-// 窗口控制功能 - 使用原生窗口，不需要自定义控制
+window.minimizeWindow = () => {
+    ipcRenderer.send('minimize-window');
+};
+
+window.hideWindow = () => {
+    ipcRenderer.send('hide-window');
+};
+
+// 添加自定义窗口控制按钮到标题栏
+document.addEventListener('DOMContentLoaded', () => {
+    const header = document.getElementById('draggable-header');
+    if (header) {
+        // 创建窗口控制按钮容器
+        const controlsContainer = document.createElement('div');
+        controlsContainer.style.cssText = `
+            position: absolute;
+            top: 10px;
+            right: 15px;
+            display: flex;
+            gap: 10px;
+            z-index: 1000;
+        `;
+        
+        // 关闭按钮
+        const closeBtn = document.createElement('button');
+        closeBtn.innerHTML = '×';
+        closeBtn.style.cssText = `
+            width: 20px;
+            height: 20px;
+            border: none;
+            background: rgba(255,255,255,0.2);
+            color: white;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+        `;
+        closeBtn.addEventListener('mouseenter', () => {
+            closeBtn.style.background = 'rgba(255,100,100,0.8)';
+            closeBtn.style.transform = 'scale(1.1)';
+        });
+        closeBtn.addEventListener('mouseleave', () => {
+            closeBtn.style.background = 'rgba(255,255,255,0.2)';
+            closeBtn.style.transform = 'scale(1)';
+        });
+        closeBtn.addEventListener('click', () => {
+            window.closeWindow();
+        });
+        
+        controlsContainer.appendChild(closeBtn);
+        header.appendChild(controlsContainer);
+        
+        // 确保标题文字居中
+        header.style.position = 'relative';
+        header.style.display = 'flex';
+        header.style.justifyContent = 'center';
+        header.style.alignItems = 'center';
+    }
 
     // 页面加载时自动读取 config.json 中的 Card 值和目标路径
     const passwordInput = document.getElementById('password-input');
