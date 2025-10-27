@@ -8,7 +8,7 @@ const axios = require('axios');
 const logger = require('./logger');
 
 // DeepSeek API配置
-const DEEPSEEK_API_KEY = 'sk-9951e77313c344b5907f99ae4db45e26';
+const DEEPSEEK_API_KEY = '';
 
 // 登录状态管理
 const loginStatus = {
