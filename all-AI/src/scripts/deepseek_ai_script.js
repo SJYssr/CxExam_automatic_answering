@@ -40,7 +40,7 @@
     window.__deepseekAILoaded = true;
 
     // DeepSeek API配置
-    const DEEPSEEK_API_KEY = 'sk-c0aee2ebeda94f8fa8c36008e6b4ae01';//更改deepseekapikey
+    const DEEPSEEK_API_KEY = '';//更改deepseekapikey
     const DEEPSEEK_API_ENDPOINT = 'https://api.deepseek.com/v1/chat/completions';
     const AI_MODEL = 'deepseek-chat';
 
