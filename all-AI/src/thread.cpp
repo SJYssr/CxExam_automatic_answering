@@ -27,7 +27,7 @@ bool g_first_injection = true;
 
 // 主板认证相关全局变量
 std::string g_key = "SJYssr666";//勿动，如需更改还要更改/md5/main.py中的key
-std::string g_encrypted_text = "";//更改此行加密的主板信
+std::string g_encrypted_text = "63720a43233f0405011e7a6942424b07";//更改此行加密的主板信
 bool g_authentication_success = false;
 
 // 主板认证函数声明

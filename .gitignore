@@ -23,3 +23,4 @@ ai_test/backend/.env.example
 /all-AI/.vs
 /all-AI/out
 /all-AI/md5/build
+/后端/ui/dist-1.0.7

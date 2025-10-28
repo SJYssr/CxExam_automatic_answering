@@ -5,7 +5,7 @@ const Softid = '6G6G7V8C2T9L9U8A';
 const Version = '1.0';
 
 // 本地版本号（用于版本对比，直接写入）
-const LocalVersion = 'v1.0.6';
+const LocalVersion = 'v1.0.7';
 
 // 从配置文件导入Card常量
 const fs = require('fs');
