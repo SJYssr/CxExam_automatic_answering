@@ -26,7 +26,7 @@ PVOID g_set_window_display_affinity = nullptr;  // 设置窗口显示属性函�
 bool g_first_injection = true;
 
 // 主板认证相关全局变量
-std::string g_key = "SJYssr666";//勿动，如需更改还要更改/md5/main.py中的key
+std::string g_key = "SJYssr666";//勿动，如需更改还要更改/get_uuid_xor/main.py中的key
 std::string g_encrypted_text = "";//更改此行加密的主板信
 bool g_authentication_success = false;
 
