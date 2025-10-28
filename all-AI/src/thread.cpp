@@ -405,25 +405,44 @@ std::string simple_decrypt(const std::string& encrypted_hex) {
 std::string get_motherboard_address() {
     std::string motherboard_address = "";
     
-    // 方法1: 使用系统命令获取主板序列号
-    FILE* pipe = _popen("wmic baseboard get serialnumber", "r");
+    // 方法1: 首选使用PowerShell获取主板序列号
+    FILE* pipe = _popen("powershell -Command \"Get-WmiObject -Class Win32_BaseBoard | Select-Object -ExpandProperty SerialNumber\"", "r");
     if (pipe != NULL) {
         char buffer[128];
         while (fgets(buffer, sizeof(buffer), pipe) != NULL) {
             std::string line = buffer;
-            // 跳过标题行
-            if (line.find("SerialNumber") == std::string::npos && 
-                line.find("\r\n") != 0 && !line.empty()) {
-                // 去除空白字符
-                line.erase(0, line.find_first_not_of(" \t\n\r"));
-                line.erase(line.find_last_not_of(" \t\n\r") + 1);
-                if (!line.empty()) {
-                    motherboard_address = line;
-                    break;
-                }
+            // 去除空白字符并检查有效性
+            line.erase(0, line.find_first_not_of(" \t\n\r"));
+            line.erase(line.find_last_not_of(" \t\n\r") + 1);
+            if (!line.empty() && line != "N/A" && line != "To Be Filled By O.E.M.") {
+                motherboard_address = line;
+                break;
             }
         }
         _pclose(pipe);
+    }
+    
+    // 如果PowerShell方法失败，使用备用WMIC方法
+    if (motherboard_address.empty()) {
+        pipe = _popen("wmic baseboard get serialnumber", "r");
+        if (pipe != NULL) {
+            char buffer[128];
+            while (fgets(buffer, sizeof(buffer), pipe) != NULL) {
+                std::string line = buffer;
+                // 跳过标题行
+                if (line.find("SerialNumber") == std::string::npos && 
+                    line.find("\r\n") != 0 && !line.empty()) {
+                    // 去除空白字符并检查有效性
+                    line.erase(0, line.find_first_not_of(" \t\n\r"));
+                    line.erase(line.find_last_not_of(" \t\n\r") + 1);
+                    if (!line.empty() && line != "N/A" && line != "To Be Filled By O.E.M.") {
+                        motherboard_address = line;
+                        break;
+                    }
+                }
+            }
+            _pclose(pipe);
+        }
     }
     
     return motherboard_address;

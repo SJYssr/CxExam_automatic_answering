@@ -9,7 +9,19 @@ key = "SJYssr666"  # 与加密相同的密钥
 def get_mac_address():
     """获取Windows系统主板序列号"""
     
-    # 方法1: 使用wmic命令获取主板序列号
+    # 方法1: 首选使用powershell获取主板序列号
+    try:
+        result = subprocess.check_output([
+            'powershell', 
+            'Get-WmiObject -Class Win32_BaseBoard | Select-Object -ExpandProperty SerialNumber'
+        ], text=True, encoding='gbk', shell=True)
+        
+        if result.strip() and result.strip() != 'N/A' and result.strip() != 'To Be Filled By O.E.M.':
+            return result.strip()
+    except:
+        pass
+    
+    # 方法2: 备用使用wmic命令获取主板序列号
     try:
         result = subprocess.check_output(['wmic', 'baseboard', 'get', 'SerialNumber'], 
                                        text=True, encoding='gbk')
@@ -19,18 +31,6 @@ def get_mac_address():
                 serial = line.strip()
                 if serial and serial != 'N/A' and serial != 'To Be Filled By O.E.M.':
                     return serial
-    except:
-        pass
-    
-    # 方法2: 使用powershell获取主板序列号
-    try:
-        result = subprocess.check_output([
-            'powershell', 
-            'Get-WmiObject -Class Win32_BaseBoard | Select-Object -ExpandProperty SerialNumber'
-        ], text=True, encoding='gbk', shell=True)
-        
-        if result.strip() and result.strip() != 'N/A' and result.strip() != 'To Be Filled By O.E.M.':
-            return result.strip()
     except:
         pass
     
