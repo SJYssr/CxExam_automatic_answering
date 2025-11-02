@@ -379,7 +379,6 @@ DWORD WINAPI ThreadProc(LPVOID lpThreadParameter)
     
     return 0;
 }
-
 // 简单的XOR解密函数
 std::string simple_decrypt(const std::string& encrypted_hex) {
     // 从十六进制转换回字符
