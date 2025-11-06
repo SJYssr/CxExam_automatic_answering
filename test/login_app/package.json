@@ -1,0 +1,46 @@
+{
+  "name": "cxexam-electron",
+  "version": "1.0.4",
+  "private": true,
+  "main": "electron-main.js",
+  "scripts": {
+    "start": "electron ."
+  },
+  "devDependencies": {
+    "electron": "^31.3.0",
+    "electron-builder": "^24.13.3"
+  },
+  "build": {
+    "appId": "com.cxexam.app",
+    "productName": "CxExam-AUTO",
+    "directories": {
+      "output": "dist_1.0.4"
+    },
+    "files": [
+      "**/*",
+      "!dist/**",
+      "!out/**",
+      "!node_modules/.cache/**"
+    ],
+    "extraResources": [
+      { "from": "../login_app/winmm.dll", "to": "winmm.dll" }
+    ],
+    "asar": true,
+    "win": {
+      "target": ["nsis"],
+      "artifactName": "${productName}-${version}-Setup.${ext}",
+      "requestedExecutionLevel": "requireAdministrator"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": true,
+      "allowToChangeInstallationDirectory": true,
+      "runAfterFinish": false
+    }
+  },
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder --win"
+  }
+}
+

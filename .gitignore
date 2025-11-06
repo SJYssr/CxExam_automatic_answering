@@ -25,3 +25,8 @@ ai_test/backend/.env.example
 /all-AI/md5/build
 /后端/ui/dist-1.0.7
 /后端/ui/dist-1.0.8
+/test/login_app/dist_1.0.0
+/test/login_app/dist_1.0.4
+/test/login_app/node_modules
+/test/winmm/cef
+/test/winmm/out

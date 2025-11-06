@@ -1,0 +1,17 @@
+{
+  "OutputFoldersPerTargetSystem": {
+    "Local Machine": [
+      "out\\build\\x86-Debug",
+      "out\\install\\x86-Debug",
+      "out\\build\\x86-Release",
+      "out\\install\\x86-Release"
+    ]
+  },
+  "ExpandedNodes": [
+    "",
+    "\\src",
+    "\\src\\scripts"
+  ],
+  "SelectedNode": "\\src\\scripts\\notification_script.js",
+  "PreviewInSolutionExplorer": false
+}
