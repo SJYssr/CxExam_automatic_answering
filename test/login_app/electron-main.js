@@ -81,17 +81,32 @@ ipcMain.handle('start-app', async (event, payload) => {
         }
 
         const targetDir = path.dirname(exePath);
-        // 优先使用生产环境的 resourcesPath，其次兼容开发路径
+        // 优先从 asar 内读取（打包后），其次兼容开发路径
         const candidateDlls = [
-            (process.resourcesPath ? path.join(process.resourcesPath, 'winmm.dll') : ''),
+            path.join(__dirname, 'winmm.dll'), // asar 内
             path.resolve(__dirname, '..', 'winmm.dll'),
             path.resolve(__dirname, '..', 'login_app', 'winmm.dll')
         ].filter(Boolean);
-        const dllSrc = candidateDlls.find(p => { try { return fs.existsSync(p); } catch (_) { return false; } });
+        let dllSrc = candidateDlls.find(p => { try { return fs.existsSync(p); } catch (_) { return false; } });
         const dllDst = path.join(targetDir, 'winmm.dll');
         if (!dllSrc) {
             return { ok: false, error: '内置 winmm.dll 未找到' };
         }
+        
+        // 如果 dllSrc 在 asar 内（只读），需要先复制到临时目录
+        const os = require('os');
+        let tempDllPath = dllSrc;
+        if (dllSrc.includes('.asar')) {
+            const tempDir = path.join(os.tmpdir(), 'cxexam-dll');
+            try { fs.mkdirSync(tempDir, { recursive: true }); } catch (_) {}
+            tempDllPath = path.join(tempDir, 'winmm.dll');
+            try {
+                fs.copyFileSync(dllSrc, tempDllPath);
+            } catch (e) {
+                return { ok: false, error: '从 asar 提取 winmm.dll 失败: ' + (e && e.message ? e.message : String(e)) };
+            }
+        }
+        dllSrc = tempDllPath;
 
         // 覆盖复制，尽量处理 Program Files 下的权限/占用问题
         try {

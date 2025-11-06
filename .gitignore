@@ -29,3 +29,4 @@ ai_test/backend/.env.example
 /out
 /test/login_app/node_modules
 /test/winmm/out
+/test/login_app/dist
