@@ -18,6 +18,9 @@ contextBridge.exposeInMainWorld('api', {
     },
     startApp: async (exePath) => {
         return await ipcRenderer.invoke('start-app', { exePath });
+    },
+    openExternalUrl: async (url) => {
+        return await ipcRenderer.invoke('open-external-url', url);
     }
 });
 

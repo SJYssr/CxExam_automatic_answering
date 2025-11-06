@@ -7,9 +7,14 @@ const statusEl = $('status');
 const iconChooseExe = $('iconChooseExe');
 const iconToggleCard = $('iconToggleCard');
 const iconToggleApikey = $('iconToggleApikey');
+const btnPurchase = $('btnPurchase');
+const btnHelp = $('btnHelp');
+const btnUpdate = $('btnUpdate');
+const updateTooltip = $('updateTooltip');
 const btnLogin = $('btnLogin');
 const btnStart = $('btnStart');
 let loggedIn = false;
+let updateButtonEnabled = false;
 
 function isNonEmpty(v) {
     return v != null && String(v).trim().length > 0;
@@ -73,6 +78,69 @@ function debounce(fn, ms) {
         clearTimeout(t);
         t = setTimeout(() => fn(), ms);
     };
+}
+
+// 购买按钮：打开购买链接
+if (btnPurchase) {
+    btnPurchase.addEventListener('click', async () => {
+        try {
+            const res = await window.api.openExternalUrl('https://m.tb.cn/h.Sqe1TUm?tk=odOcfhswxR3');
+            if (!res || !res.ok) {
+                logStatus('打开购买链接失败');
+            }
+        } catch (e) {
+            logStatus('打开购买链接异常: ' + (e && e.message ? e.message : String(e)));
+        }
+    });
+}
+
+// 使用说明按钮：打开使用说明链接
+if (btnHelp) {
+    btnHelp.addEventListener('click', async () => {
+        try {
+            const res = await window.api.openExternalUrl('https://www.yuque.com/yucruocn/wilczp/fegosvqp6itfpa8m?singleDoc#');
+            if (!res || !res.ok) {
+                logStatus('打开使用说明链接失败');
+            }
+        } catch (e) {
+            logStatus('打开使用说明链接异常: ' + (e && e.message ? e.message : String(e)));
+        }
+    });
+}
+
+// 更新按钮：打开更新链接（需等待提示框完全显示后才能点击）
+if (btnUpdate && updateTooltip) {
+    // 鼠标移入：显示提示框，禁用按钮，等待动画完成后启用
+    btnUpdate.addEventListener('mouseenter', () => {
+        updateButtonEnabled = false;
+        updateTooltip.classList.add('show');
+        // 等待动画完成（0.5s）后启用按钮
+        setTimeout(() => {
+            updateButtonEnabled = true;
+        }, 500);
+    });
+    
+    // 鼠标移出：隐藏提示框，禁用按钮
+    btnUpdate.addEventListener('mouseleave', () => {
+        updateButtonEnabled = false;
+        updateTooltip.classList.remove('show');
+    });
+    
+    // 点击事件：只有在提示框完全显示后才能点击
+    btnUpdate.addEventListener('click', async (e) => {
+        if (!updateButtonEnabled) {
+            e.preventDefault();
+            return;
+        }
+        try {
+            const res = await window.api.openExternalUrl('https://wwfb.lanzouw.com/b00wn52fhg');
+            if (!res || !res.ok) {
+                logStatus('打开更新链接失败');
+            }
+        } catch (err) {
+            logStatus('打开更新链接异常: ' + (err && err.message ? err.message : String(err)));
+        }
+    });
 }
 
 // 手动触发登录

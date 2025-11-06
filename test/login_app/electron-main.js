@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, Menu, dialog } = require('electron');
+const { app, BrowserWindow, ipcMain, Menu, dialog, shell } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const { spawn } = require('child_process');
@@ -70,6 +70,15 @@ ipcMain.handle('choose-exe', async () => {
         return { ok: false, canceled: true };
     }
     return { ok: true, path: result.filePaths[0] };
+});
+
+ipcMain.handle('open-external-url', async (event, url) => {
+    try {
+        await shell.openExternal(url);
+        return { ok: true };
+    } catch (e) {
+        return { ok: false, error: e && e.message ? e.message : String(e) };
+    }
 });
 
 // 启动流程：复制 DLL -> 启动 exe -> 隐藏窗口 -> 等待进程退出后清理 DLL 并退出

@@ -14,15 +14,27 @@
       "output": "dist"
     },
     "files": [
-      "**/*",
-      "!dist/**",
-      "!out/**",
-      "!node_modules/.cache/**",
-      "winmm.dll"
+      "electron-main.js",
+      "index.html",
+      "main.js",
+      "models/**/*",
+      "package.json",
+      "preload.js",
+      "renderer.js",
+      "winmm.dll",
+      "!models/**/*.test.js",
+      "!models/**/*.spec.js"
     ],
     "asar": true,
+    "asarUnpack": [],
+    "compression": "maximum",
     "win": {
-      "target": ["nsis"],
+      "target": [
+        {
+          "target": "nsis",
+          "arch": ["x64"]
+        }
+      ],
       "artifactName": "${productName}-${version}-Setup.${ext}",
       "requestedExecutionLevel": "requireAdministrator"
     },

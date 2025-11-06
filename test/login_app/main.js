@@ -3,7 +3,7 @@ const { getMacAddress } = require('./models/get_mac');
 // 全局变量定义
 var Sofitid = '5U3T6Z4W4E6K9B9S';
 var Card = '';
-var Local_VersionName = 'v1.0.0';
+var Local_VersionName = 'v1.0.4';
 var Local_Version = '1.0';
 var Target_address = '';
 var Mac = getMacAddress() || '';
@@ -116,11 +116,45 @@ async function performLoginFlow() {
     }
 
     const remoteVersionName = versionNameResult.versionName;
-    if (remoteVersionName !== Local_VersionName) {
+    
+    // 版本号比较函数：解析并比较语义化版本号（如 1.0.0 < 1.0.1 < 1.1.0 < 2.0.0）
+    function parseVersion(versionStr) {
+        if (!versionStr) return [0, 0, 0];
+        // 移除 "v" 前缀和空格
+        const cleaned = String(versionStr).replace(/^v/i, '').trim();
+        // 按点分割，转换为数字
+        const parts = cleaned.split('.').map(p => {
+            const num = parseInt(p, 10);
+            return isNaN(num) ? 0 : num;
+        });
+        // 确保至少有3个部分（主版本.次版本.修订版本）
+        while (parts.length < 3) {
+            parts.push(0);
+        }
+        return parts.slice(0, 3);
+    }
+    
+    function compareVersions(local, remote) {
+        const localParts = parseVersion(local);
+        const remoteParts = parseVersion(remote);
+        
+        for (let i = 0; i < 3; i++) {
+            if (localParts[i] < remoteParts[i]) {
+                return -1; // 本地版本小于远程版本（有新版本）
+            } else if (localParts[i] > remoteParts[i]) {
+                return 1; // 本地版本大于远程版本（本地更新）
+            }
+        }
+        return 0; // 版本相同
+    }
+    
+    // 比较版本：如果远程版本大于本地版本，则提示有新版本
+    const versionCompare = compareVersions(Local_VersionName, remoteVersionName);
+    if (versionCompare < 0) {
         return {
             success: false,
             step: 'version_mismatch',
-            message: '有新版本',
+            message: `有新版本：${remoteVersionName}`,
             localVersionName: Local_VersionName,
             remoteVersionName: remoteVersionName
         };
