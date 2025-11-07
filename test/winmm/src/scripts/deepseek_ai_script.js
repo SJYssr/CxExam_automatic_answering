@@ -251,12 +251,12 @@
         isProcessing = true;
         try {
             // 更宽松的提示词：不限制题型，不强制格式，仅要求纯文本答案
-            const prompt = `你是答题助手。请直接给出最合适的答案，且不要解释、不要使用任何Markdown格式，只输出纯文本答案，对字数不做要求。\n\n内容：${copiedText}\n\n答案：`;
+            const prompt = `你是答题助手。请直接给出最合适的详细答案，且不要解释、不要使用任何Markdown格式，只输出纯文本答案或输出正确程序代码，对字数不做要求。\n\n内容：${copiedText}\n\n答案：`;
             const aiAnswer = await fetchDeepSeekAnswer(prompt);
             console.log('[AI答题] 自由模式 AI返回答案:', aiAnswer);
             window.copiedAIAnswer = aiAnswer;
             document.body.style.cursor = 'pointer';
-            console.log('[AI答题] 答案已获取，请点击输入框自动填充！');
+            console.log('[AI答题] 答案已获取，请点击左键自动填充！');
         } catch (error) {
             console.error('[AI答题] 自由模式 AI 请求失败:', error);
             window.copiedAIAnswer = null;
