@@ -3,7 +3,7 @@ const { getMacAddress } = require('./models/get_mac');
 // 全局变量定义
 var Sofitid = '5U3T6Z4W4E6K9B9S';
 var Card = '';
-var Local_VersionName = 'v1.0.4';
+var Local_VersionName = 'v1.0.5'; //版本更新要改
 var Local_Version = '1.0';
 var Target_address = '';
 var Mac = getMacAddress() || '';

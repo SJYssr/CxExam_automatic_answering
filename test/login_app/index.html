@@ -19,7 +19,12 @@
       .icon-in:hover { opacity: 1; }
       #status { white-space: pre-wrap; word-wrap: break-word; overflow-wrap: break-word; background: #f6f8fa; border: 1px solid #e1e4e8; padding: 10px; min-height: 25px; max-width: 450px; border-radius: 10px; overflow-y: auto; }
       button { padding: 8px 16px; margin-right: 12px; border-radius: 10px; }
-      .disclaimer { font-size: 11px; color: #666; text-align: center; display: block; max-width: 600px; margin: 0 auto 12px auto; line-height: 1.4; }
+      .info-row { display: flex; justify-content: center; gap: 16px; align-items: stretch; margin-bottom: 12px; }
+      .notice-box { width: 220px; border: 1px solid #e1e4e8; border-radius: 10px; background: #ffffff; padding: 10px; font-size: 12px; color: #000000; line-height: 1.5; box-shadow: inset 0 0 0 1px rgba(0,0,0,0.02); }
+      .notice-title { font-weight: bold; margin-bottom: 6px; text-align: center; }
+      .notice-content { max-height: 120px; overflow-y: auto; white-space: pre-wrap; word-break: break-word; scrollbar-width: none; -ms-overflow-style: none; }
+      .notice-content::-webkit-scrollbar { display: none; }
+      .disclaimer { font-size: 11px; color: #666; text-align: center; display: block; max-width: 360px; line-height: 1.4; padding: 10px; border: 1px solid #e1e4e8; border-radius: 10px; background: #f8f8f8; }
       .button-group { text-align: center; position: relative; }
       .update-tooltip {
         position: absolute;
@@ -78,7 +83,13 @@
       <label>登录状态</label>
       <div id="status"></div>
     </div>
-    <div class="disclaimer">免责声明：<br/>仅供学习交流使用<br/>仅用于学习讨论，禁止用于非法用途<br/>他人或组织使用此工具进行的任何违法行为与本人无关<br/>使用本项目造成的任何后果由使用者自行承担<br/>您的付费为项目测试资格，您的一切行为与作者无关<br/>启动则代表您同意本声明</div>
+    <div class="info-row">
+      <div class="notice-box">
+        <div class="notice-title">公告</div>
+        <div class="notice-content" id="noticeBox">暂无公告</div>
+      </div>
+      <div class="disclaimer">免责声明：<br/>1.仅供学习交流使用，禁止用于非法用途<br/>2.他人或组织使用此工具进行的任何违法行为与作者无关<br/>3.使用本项目造成的任何后果由使用者自行承担<br/>4.您的付费为项目测试资格，您的一切行为与作者无关<br/>5.登陆/启动则代表您同意本声明</div>
+    </div>
     <div class="row button-group">
       <button id="btnPurchase">购买</button>
       <button id="btnHelp">使用说明</button>
@@ -89,7 +100,7 @@
       <button id="btnLogin">登录</button>
       <button id="btnStart">启动</button>
     </div>
-    <div class="version">---CxExam-AUTO-v1.0.4---</div>
+    <div class="version">---CxExam-AUTO-v1.0.5---</div>
 
     <script src="renderer.js"></script>
   </body>

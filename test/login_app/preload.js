@@ -21,6 +21,9 @@ contextBridge.exposeInMainWorld('api', {
     },
     openExternalUrl: async (url) => {
         return await ipcRenderer.invoke('open-external-url', url);
+    },
+    getNotice: async () => {
+        return await ipcRenderer.invoke('get-notice');
     }
 });
 

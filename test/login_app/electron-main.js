@@ -8,7 +8,7 @@ let mainWindow = null;
 function createWindow() {
     const win = new BrowserWindow({
         width: 520,
-        height: 520,
+        height: 570,
         webPreferences: {
             preload: path.join(__dirname, 'preload.js'),
             contextIsolation: true,
@@ -76,6 +76,16 @@ ipcMain.handle('open-external-url', async (event, url) => {
     try {
         await shell.openExternal(url);
         return { ok: true };
+    } catch (e) {
+        return { ok: false, error: e && e.message ? e.message : String(e) };
+    }
+});
+
+ipcMain.handle('get-notice', async () => {
+    try {
+        const { getNotice } = require('./models/get_notice');
+        const res = await getNotice();
+        return { ok: true, data: res };
     } catch (e) {
         return { ok: false, error: e && e.message ? e.message : String(e) };
     }

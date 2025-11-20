@@ -13,6 +13,7 @@ const btnUpdate = $('btnUpdate');
 const updateTooltip = $('updateTooltip');
 const btnLogin = $('btnLogin');
 const btnStart = $('btnStart');
+const noticeBox = $('noticeBox');
 let loggedIn = false;
 let updateButtonEnabled = false;
 
@@ -29,6 +30,35 @@ function updateButtons() {
 
 function logStatus(obj) {
     statusEl.textContent = typeof obj === 'string' ? obj : JSON.stringify(obj, null, 2);
+}
+
+function setNoticeText(text) {
+    if (noticeBox) {
+        noticeBox.textContent = text;
+    }
+}
+
+async function loadNotice() {
+    if (!noticeBox || !window.api || typeof window.api.getNotice !== 'function') return;
+    setNoticeText('公告加载中...');
+    try {
+        const res = await window.api.getNotice();
+        if (res && res.ok && res.data) {
+            const data = res.data;
+            if (data.success && data.notice) {
+                setNoticeText(data.notice);
+            } else {
+                const code = data.errorCode ? `（${data.errorCode}）` : '';
+                const msg = data.errorMessage || data.message || '公告获取失败';
+                setNoticeText(`${msg}${code}`);
+            }
+        } else {
+            const err = (res && res.error) ? res.error : '公告获取失败';
+            setNoticeText(err);
+        }
+    } catch (e) {
+        setNoticeText(e && e.message ? e.message : '公告获取异常');
+    }
 }
 
 async function runLoginFlow() {
@@ -243,5 +273,6 @@ iconChooseExe.addEventListener('click', async () => {
 
 // 初始：加载配置填充
 loadConfigsAndFill();
+loadNotice();
 
 
