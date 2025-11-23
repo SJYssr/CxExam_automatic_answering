@@ -160,12 +160,24 @@ async function performLoginFlow() {
         };
     }
 
+    // 如果之前没有获取到到期时间（比如遇到 -83013 首次激活），登录成功后再次尝试获取
+    let finalExpireTime = '';
+    if (timeResult && timeResult.success) {
+        finalExpireTime = timeResult.expireTime || '';
+    } else {
+        // 登录成功后，再次尝试获取到期时间
+        const retryTimeResult = await getExpireTime();
+        if (retryTimeResult && retryTimeResult.success) {
+            finalExpireTime = retryTimeResult.expireTime || '';
+        }
+    }
+
     return {
         success: true,
         step: 'done',
         token,
         versionName: remoteVersionName,
-        expireTime: (timeResult && timeResult.success) ? timeResult.expireTime : ''
+        expireTime: finalExpireTime
     };
 }
 

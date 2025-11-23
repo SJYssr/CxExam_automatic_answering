@@ -35,3 +35,4 @@ ai_test/backend/.env.example
 /test/winmm/.vs/winmm/v17
 /test/winmm/.vs
 /test/winmm/.vs
+/test/login_app/dist-1.0.6
