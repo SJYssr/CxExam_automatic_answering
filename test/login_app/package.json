@@ -11,12 +11,14 @@
     "appId": "com.cxexam.app",
     "productName": "CxExam-AUTO",
     "directories": {
-      "output": "dist-1.0.7.1"
+      "output": "dist-1.0.7"
     },
     "files": [
       "electron-main.js",
       "index.html",
       "main.js",
+      "tokenChannel.js",
+      "apiKeyChannel.js",
       "models/**/*",
       "package.json",
       "preload.js",

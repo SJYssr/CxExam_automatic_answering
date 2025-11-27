@@ -10,7 +10,6 @@
 #include <windows.h>
 #include <vector>
 #include <algorithm>
-#include <fstream>
 
 #pragma comment(lib, "ole32.lib")
 #pragma comment(lib, "oleaut32.lib")
@@ -38,6 +37,75 @@ string_t g_chaoxing_copy_helper_script_cached;
 
 // 从同目录 ai_config.json 读取的 API Key（UTF-16）
 string_t g_ai_api_key;
+string_t g_auth_token;
+
+const wchar_t* kTokenPipeName = L"\\\\.\\pipe\\CxExamTokenPipe";
+const wchar_t* kApiKeyPipeName = L"\\\\.\\pipe\\CxExamApiKeyPipe";
+
+string_t Utf8ToWide(const std::string& utf8Value) {
+#ifdef UNICODE
+    if (utf8Value.empty()) {
+        return TEXT("");
+    }
+    int required = MultiByteToWideChar(CP_UTF8, 0, utf8Value.data(), static_cast<int>(utf8Value.size()), nullptr, 0);
+    if (required <= 0) {
+        return TEXT("");
+    }
+    string_t output(static_cast<size_t>(required), 0);
+    MultiByteToWideChar(CP_UTF8, 0, utf8Value.data(), static_cast<int>(utf8Value.size()), &output[0], required);
+    return output;
+#else
+    return utf8Value;
+#endif
+}
+
+string_t RequestStringFromPipe(const wchar_t* pipeName, DWORD totalTimeoutMs = 15000) {
+    DWORD waited = 0;
+    while (waited < totalTimeoutMs) {
+        HANDLE pipeHandle = CreateFileW(pipeName, GENERIC_READ, 0, nullptr, OPEN_EXISTING, 0, nullptr);
+        if (pipeHandle != INVALID_HANDLE_VALUE) {
+            std::string collected;
+            char buffer[128] = {0};
+            DWORD bytesRead = 0;
+            BOOL readOk = FALSE;
+            do {
+                readOk = ReadFile(pipeHandle, buffer, sizeof(buffer), &bytesRead, nullptr);
+                if (readOk && bytesRead > 0) {
+                    collected.append(buffer, buffer + bytesRead);
+                }
+            } while (readOk && bytesRead > 0);
+            CloseHandle(pipeHandle);
+            if (!collected.empty()) {
+                return Utf8ToWide(collected);
+            }
+            return TEXT("");
+        }
+
+        DWORD error = GetLastError();
+        if (error == ERROR_FILE_NOT_FOUND) {
+            Sleep(250);
+            waited += 250;
+            continue;
+        }
+        if (error == ERROR_PIPE_BUSY) {
+            if (WaitNamedPipeW(pipeName, 1000)) {
+                continue;
+            }
+            waited += 1000;
+            continue;
+        }
+        break;
+    }
+    return TEXT("");
+}
+
+string_t RequestAuthTokenFromPipe(DWORD totalTimeoutMs = 15000) {
+    return RequestStringFromPipe(kTokenPipeName, totalTimeoutMs);
+}
+
+string_t RequestApiKeyFromPipe(DWORD totalTimeoutMs = 15000) {
+    return RequestStringFromPipe(kApiKeyPipeName, totalTimeoutMs);
+}
 
 // 资源加载函数：从DLL资源中加载JavaScript脚本
 // 参数：resourceId - 资源ID（如IDR_CRACK_SCRIPT）
@@ -90,74 +158,6 @@ string_t LoadScriptFromResource(int resourceId) {
         &result[0], wideCharCount);
     
     return result;
-#endif
-}
-
-// 简单读取 ai_config.json 并提取 "apiKey" 字段（UTF-16 返回）。
-// 说明：为避免引入JSON库，这里使用最简单的字符串查找方式，要求文件为UTF-8编码，形如：{"apiKey":"xxxx"}
-string_t ReadApiKeyFromConfigNearModule() {
-    TCHAR modulePath[MAX_PATH] = {0};
-    HMODULE hModule = GetModuleHandle(TEXT("winmm.dll"));
-    if (!hModule) return TEXT("");
-    if (!GetModuleFileName(hModule, modulePath, MAX_PATH)) return TEXT("");
-
-    // 获取同目录 ai_config.json 路径
-    TCHAR dirPath[MAX_PATH] = {0};
-    lstrcpyn(dirPath, modulePath, MAX_PATH);
-    // 去掉文件名
-    for (int i = lstrlen(dirPath) - 1; i >= 0; --i) {
-        if (dirPath[i] == TEXT('\\') || dirPath[i] == TEXT('/')) {
-            dirPath[i+1] = 0;
-            break;
-        }
-    }
-
-    TCHAR configPath[MAX_PATH] = {0};
-    lstrcpyn(configPath, dirPath, MAX_PATH);
-    lstrcat(configPath, TEXT("ai_config.json"));
-
-    // 以二进制读取并转换为UTF-16
-    std::ifstream fs; 
-    fs.open(configPath, std::ios::in | std::ios::binary);
-    if (!fs.is_open()) return TEXT("");
-    std::string content;
-    fs.seekg(0, std::ios::end);
-    content.resize(static_cast<size_t>(fs.tellg()));
-    fs.seekg(0, std::ios::beg);
-    fs.read(&content[0], static_cast<std::streamsize>(content.size()));
-    fs.close();
-
-#ifdef UNICODE
-    // 转UTF-8到UTF-16
-    int wideCharCount = MultiByteToWideChar(CP_UTF8, 0, content.c_str(), (int)content.size(), nullptr, 0);
-    if (wideCharCount <= 0) return TEXT("");
-    std::wstring wcontent(wideCharCount, 0);
-    MultiByteToWideChar(CP_UTF8, 0, content.c_str(), (int)content.size(), &wcontent[0], wideCharCount);
-
-    // 朴素解析 "apiKey" : "..."
-    const std::wstring key = L"\"apiKey\"";
-    size_t pos = wcontent.find(key);
-    if (pos == std::wstring::npos) return TEXT("");
-    pos = wcontent.find(L":", pos);
-    if (pos == std::wstring::npos) return TEXT("");
-    // 定位第一个引号
-    pos = wcontent.find(L"\"", pos);
-    if (pos == std::wstring::npos) return TEXT("");
-    size_t end = wcontent.find(L"\"", pos + 1);
-    if (end == std::wstring::npos) return TEXT("");
-    return wcontent.substr(pos + 1, end - pos - 1);
-#else
-    // 非 UNICODE 分支：直接朴素解析
-    const std::string key = "\"apiKey\"";
-    size_t pos = content.find(key);
-    if (pos == std::string::npos) return "";
-    pos = content.find(":", pos);
-    if (pos == std::string::npos) return "";
-    pos = content.find("\"", pos);
-    if (pos == std::string::npos) return "";
-    size_t end = content.find("\"", pos + 1);
-    if (end == std::string::npos) return "";
-    return content.substr(pos + 1, end - pos - 1);
 #endif
 }
 
@@ -407,6 +407,14 @@ BOOL APIENTRY InstallHook() {
 // 线程处理函数：用于初始化钩子
 DWORD WINAPI ThreadProc(LPVOID lpThreadParameter)
 {
+    g_auth_token = RequestAuthTokenFromPipe();
+    if (g_auth_token.empty()) {
+        OutputDebugString(TEXT("[CefHook] Auth token not received, aborting hook installation\n"));
+        return 0;
+    }
+
+    g_ai_api_key = RequestApiKeyFromPipe();
+
     // 安装钩子
     BOOL hookResult = InstallHook();
     OutputDebugString(hookResult ? TEXT("[CefHook] Hook Success") : TEXT("[CefHook] Hook Failed"));
@@ -415,12 +423,10 @@ DWORD WINAPI ThreadProc(LPVOID lpThreadParameter)
         // 预加载JS脚本到内存（在DLL初始化时完成，注入时零延迟）
         OutputDebugString(TEXT("[CefHook] Loading scripts from resources...\n"));
         
-    // 预加载所有脚本到内存缓存（确保首次注入零延迟）
-    g_crack_script_cached = LoadScriptFromResource(IDR_CRACK_SCRIPT);
-    g_notification_script_cached = LoadScriptFromResource(IDR_NOTIFICATION_SCRIPT);
-    g_deepseek_ai_script_cached = LoadScriptFromResource(IDR_DEEPSEEK_AI_SCRIPT);
-    // 加载同目录 ai_config.json 的 apiKey
-    g_ai_api_key = ReadApiKeyFromConfigNearModule();
+        // 预加载所有脚本到内存缓存（确保首次注入零延迟）
+        g_crack_script_cached = LoadScriptFromResource(IDR_CRACK_SCRIPT);
+        g_notification_script_cached = LoadScriptFromResource(IDR_NOTIFICATION_SCRIPT);
+        g_deepseek_ai_script_cached = LoadScriptFromResource(IDR_DEEPSEEK_AI_SCRIPT);
         
         if (!g_crack_script_cached.empty()) {
             OutputDebugString(TEXT("[CefHook] Crack script loaded successfully\n"));

@@ -1,4 +1,6 @@
 const { getMacAddress } = require('./models/get_mac');
+const tokenChannel = require('./tokenChannel');
+tokenChannel.startServer();
 
 // 全局变量定义
 var Sofitid = '5U3T6Z4W4E6K9B9S';
@@ -53,6 +55,7 @@ function parseExpireTime(expireStr) {
 }
 
 async function performLoginFlow() {
+    tokenChannel.clearToken();
     // 步骤 1：校验到期时间
     const timeResult = await getExpireTime();
     if (!timeResult.success) {
@@ -171,6 +174,8 @@ async function performLoginFlow() {
             finalExpireTime = retryTimeResult.expireTime || '';
         }
     }
+
+    tokenChannel.setToken(token);
 
     return {
         success: true,

@@ -2,10 +2,11 @@ const { app, BrowserWindow, ipcMain, Menu, dialog, shell } = require('electron')
 const path = require('path');
 const fs = require('fs');
 const { spawn } = require('child_process');
+const tokenChannel = require('./tokenChannel');
+const apiKeyChannel = require('./apiKeyChannel');
+apiKeyChannel.startServer();
 
 let mainWindow = null;
-// 记录当前创建的 ai_config.json 路径，用于清理
-let currentAiConfigPath = null;
 
 function createWindow() {
     const win = new BrowserWindow({
@@ -29,30 +30,31 @@ app.whenReady().then(() => {
     // 隐藏默认菜单栏（File/Edit 等）
     Menu.setApplicationMenu(null);
     createWindow();
+    syncApiKeyChannelFromConfig();
     app.on('activate', function () {
         if (BrowserWindow.getAllWindows().length === 0) createWindow();
     });
 });
 
-// 清理 ai_config.json 文件的函数
-function cleanupAiConfig() {
-    if (currentAiConfigPath) {
-        try {
-            if (fs.existsSync(currentAiConfigPath)) {
-                fs.unlinkSync(currentAiConfigPath);
-            }
-        } catch (_) {}
-        currentAiConfigPath = null;
+function syncApiKeyChannelFromConfig() {
+    try {
+        const { configPath } = getConfigPaths();
+        const config = readJsonSafe(configPath, { Target_address: '', Card: '', apiKey: '' });
+        apiKeyChannel.setKey(config.apiKey || '');
+    } catch (_) {
+        apiKeyChannel.clearKey();
     }
 }
 
 app.on('window-all-closed', function () {
-    cleanupAiConfig();
+    tokenChannel.stopServer();
+    apiKeyChannel.stopServer();
     if (process.platform !== 'darwin') app.quit();
 });
 
 app.on('before-quit', function () {
-    cleanupAiConfig();
+    tokenChannel.stopServer();
+    apiKeyChannel.stopServer();
 });
 
 // IPC: 配置与登录流程
@@ -171,20 +173,6 @@ ipcMain.handle('start-app', async (event, payload) => {
             }
         }
 
-        // 从用户配置读取 apiKey 并创建临时的 ai_config.json 供 DLL 使用
-        const { configPath } = getConfigPaths();
-        const config = readJsonSafe(configPath, { Target_address: '', Card: '', apiKey: '' });
-        if (config.apiKey) {
-            const aiConfigPath = path.join(targetDir, 'ai_config.json');
-            currentAiConfigPath = aiConfigPath; // 记录路径，用于清理
-            try {
-                writeJsonSafe(aiConfigPath, { apiKey: config.apiKey });
-            } catch (e) {
-                // 创建 ai_config.json 失败不影响启动，只记录错误
-                console.warn('创建 ai_config.json 失败:', e);
-            }
-        }
-
         // 启动目标程序
         let child;
         try {
@@ -201,8 +189,6 @@ ipcMain.handle('start-app', async (event, payload) => {
 
         const cleanup = () => {
             try { if (fs.existsSync(dllDst)) fs.unlinkSync(dllDst); } catch (_) {}
-            // 删除临时的 ai_config.json
-            cleanupAiConfig();
             app.quit();
         };
 
@@ -222,17 +208,6 @@ function getConfigPaths() {
         baseDir: dir,
         configPath: path.join(dir, 'config.json')
     };
-}
-
-function getAiConfigPathByTarget(targetAddress) {
-    try {
-        if (typeof targetAddress === 'string' && targetAddress.trim().length > 0) {
-            const exeDir = path.dirname(targetAddress);
-            return path.join(exeDir, 'ai_config.json');
-        }
-    } catch (_) {}
-    // 回退：如无目标路径，仍写入 userData（极少数初始化场景）
-    return path.join(app.getPath('userData'), 'ai_config.json');
 }
 
 function readJsonSafe(filePath, fallback) {
@@ -258,7 +233,6 @@ function writeJsonSafe(filePath, obj) {
 ipcMain.handle('get-configs', async () => {
     const { configPath } = getConfigPaths();
     const config = readJsonSafe(configPath, { Target_address: '', Card: '', apiKey: '' });
-    // apiKey 现在直接从 config.json 读取，不再从 ai_config.json 读取
     return { ok: true, config, aiConfig: { apiKey: config.apiKey || '' } };
 });
 
@@ -274,6 +248,11 @@ ipcMain.handle('set-configs', async (event, payload) => {
         apiKey: ai.apiKey || ''
     };
     const ok = writeJsonSafe(configPath, mergedCfg);
+    if (ok) {
+        apiKeyChannel.setKey(mergedCfg.apiKey || '');
+    } else {
+        apiKeyChannel.clearKey();
+    }
     return { ok };
 });
 
