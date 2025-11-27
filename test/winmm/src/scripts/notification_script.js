@@ -29,7 +29,7 @@
     
     // 创建作者信息
     const authorElement = document.createElement('div');
-    authorElement.innerHTML = '<b>作者:</b> SJYssr<br><b>GitHub地址:</b> <a target="_blank" style="color: white; text-decoration: underline;">https://github.com/SJYssr</a>';
+    authorElement.innerHTML = '<b>技术支持:</b> SJYssr<br><b>GitHub地址:</b> <a target="_blank" style="color: white; text-decoration: underline;">https://github.com/SJYssr</a>';
     authorElement.style.marginBottom = '10px';
     notificationDiv.appendChild(authorElement);
     
@@ -49,7 +49,7 @@
     
     // 添加版本信息
     const versionElement = document.createElement('div');
-    versionElement.innerHTML = '<b>版本:</b> V1.0.6';
+    versionElement.innerHTML = '<b>版本:</b> V1.0.7';
     versionElement.style.marginBottom = '10px';
     notificationDiv.appendChild(versionElement);
     

@@ -1,6 +1,6 @@
 {
   "name": "cxexam-electron",
-  "version": "1.0.6", 
+  "version": "1.0.7", 
   "private": true,
   "main": "electron-main.js",
   "devDependencies": {
@@ -11,7 +11,7 @@
     "appId": "com.cxexam.app",
     "productName": "CxExam-AUTO",
     "directories": {
-      "output": "dist-1.0.6"
+      "output": "dist-1.0.7"
     },
     "files": [
       "electron-main.js",
@@ -23,7 +23,14 @@
       "renderer.js",
       "winmm.dll",
       "!models/**/*.test.js",
-      "!models/**/*.spec.js"
+      "!models/**/*.spec.js",
+      "!**/*.md",
+      "!**/*.map",
+      "!**/*.log",
+      "!**/README*",
+      "!**/LICENSE*",
+      "!**/.git*",
+      "!**/node_modules/.cache/**/*"
     ],
     "asar": true,
     "asarUnpack": [],

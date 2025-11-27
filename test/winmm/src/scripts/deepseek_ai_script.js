@@ -138,7 +138,7 @@
                     const filled = fillToInputElementForChaoxing(elementToFill, answerToFill);
                     
                     if (filled) {
-                        console.log('[AI答题] 检测到点击输入框，自动填充答案:', answerToFill);
+                        console.log('[AI答题] 检测到点击，自动填充答案:', answerToFill);
                         
                         // 填充后清除存储的答案，恢复鼠标指针
                         window.copiedAIAnswer = null;
@@ -160,7 +160,7 @@
         });
         
         console.log('[AI答题] 脚本初始化完成');
-        console.log('[AI答题] 使用说明: CTRL+C 获取单题答案；鼠标中键拉取全题答案');
+        console.log('[AI答题] 使用说明: 中键获取答案，中键填充答案');
     }
 
     // 全局变量用于防止重复执行
