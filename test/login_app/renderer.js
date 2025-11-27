@@ -232,9 +232,12 @@ async function loadConfigsAndFill() {
             if (res.config) {
                 if (!isNonEmpty(targetEl.value)) targetEl.value = res.config.Target_address || '';
                 if (!isNonEmpty(cardEl.value)) cardEl.value = res.config.Card || '';
+                // apiKey 现在也在 config 中
+                if (!isNonEmpty(apikeyEl.value)) apikeyEl.value = res.config.apiKey || '';
             }
-            if (res.aiConfig) {
-                if (!isNonEmpty(apikeyEl.value)) apikeyEl.value = res.aiConfig.apiKey || '';
+            // 兼容旧版本：如果 aiConfig 存在，也尝试读取
+            if (res.aiConfig && !isNonEmpty(apikeyEl.value)) {
+                apikeyEl.value = res.aiConfig.apiKey || '';
             }
         }
     } catch (_) {}
@@ -243,14 +246,13 @@ async function loadConfigsAndFill() {
 
 async function saveConfigs() {
     try {
-        const hasTarget = isNonEmpty(targetEl.value);
         const payload = {
             config: { Target_address: targetEl.value || '', Card: cardEl.value || '' },
-            aiConfig: { apiKey: hasTarget ? (apikeyEl.value || '') : '' }
+            aiConfig: { apiKey: apikeyEl.value || '' }
         };
         const res = await window.api.setConfigs(payload);
         if (res && res.error) {
-            // 静默处理或可提示：未填写目标路径，无法设置 API Key
+            // 静默处理错误
         }
     } catch (_) {}
 }

@@ -4,6 +4,8 @@ const fs = require('fs');
 const { spawn } = require('child_process');
 
 let mainWindow = null;
+// 记录当前创建的 ai_config.json 路径，用于清理
+let currentAiConfigPath = null;
 
 function createWindow() {
     const win = new BrowserWindow({
@@ -32,8 +34,25 @@ app.whenReady().then(() => {
     });
 });
 
+// 清理 ai_config.json 文件的函数
+function cleanupAiConfig() {
+    if (currentAiConfigPath) {
+        try {
+            if (fs.existsSync(currentAiConfigPath)) {
+                fs.unlinkSync(currentAiConfigPath);
+            }
+        } catch (_) {}
+        currentAiConfigPath = null;
+    }
+}
+
 app.on('window-all-closed', function () {
+    cleanupAiConfig();
     if (process.platform !== 'darwin') app.quit();
+});
+
+app.on('before-quit', function () {
+    cleanupAiConfig();
 });
 
 // IPC: 配置与登录流程
@@ -152,6 +171,20 @@ ipcMain.handle('start-app', async (event, payload) => {
             }
         }
 
+        // 从用户配置读取 apiKey 并创建临时的 ai_config.json 供 DLL 使用
+        const { configPath } = getConfigPaths();
+        const config = readJsonSafe(configPath, { Target_address: '', Card: '', apiKey: '' });
+        if (config.apiKey) {
+            const aiConfigPath = path.join(targetDir, 'ai_config.json');
+            currentAiConfigPath = aiConfigPath; // 记录路径，用于清理
+            try {
+                writeJsonSafe(aiConfigPath, { apiKey: config.apiKey });
+            } catch (e) {
+                // 创建 ai_config.json 失败不影响启动，只记录错误
+                console.warn('创建 ai_config.json 失败:', e);
+            }
+        }
+
         // 启动目标程序
         let child;
         try {
@@ -168,6 +201,8 @@ ipcMain.handle('start-app', async (event, payload) => {
 
         const cleanup = () => {
             try { if (fs.existsSync(dllDst)) fs.unlinkSync(dllDst); } catch (_) {}
+            // 删除临时的 ai_config.json
+            cleanupAiConfig();
             app.quit();
         };
 
@@ -222,10 +257,9 @@ function writeJsonSafe(filePath, obj) {
 
 ipcMain.handle('get-configs', async () => {
     const { configPath } = getConfigPaths();
-    const config = readJsonSafe(configPath, { Target_address: '', Card: '' });
-    const aiPath = getAiConfigPathByTarget(config.Target_address || '');
-    const aiConfig = readJsonSafe(aiPath, { apiKey: '' });
-    return { ok: true, config, aiConfig };
+    const config = readJsonSafe(configPath, { Target_address: '', Card: '', apiKey: '' });
+    // apiKey 现在直接从 config.json 读取，不再从 ai_config.json 读取
+    return { ok: true, config, aiConfig: { apiKey: config.apiKey || '' } };
 });
 
 ipcMain.handle('set-configs', async (event, payload) => {
@@ -233,21 +267,14 @@ ipcMain.handle('set-configs', async (event, payload) => {
     const cfg = payload && payload.config ? payload.config : {};
     const ai = payload && payload.aiConfig ? payload.aiConfig : {};
 
-    // 先保存主配置
+    // 保存主配置，包含 apiKey
     const mergedCfg = {
         Target_address: cfg.Target_address || '',
-        Card: cfg.Card || ''
+        Card: cfg.Card || '',
+        apiKey: ai.apiKey || ''
     };
-    const ok1 = writeJsonSafe(configPath, mergedCfg);
-
-    // 依据（最新）Target_address 选择 ai_config.json 路径
-    if (!mergedCfg.Target_address) {
-        // 未填写目标路径时，不允许设置/保存 apiKey
-        return { ok: ok1, error: '未填写目标路径，无法设置 API Key' };
-    }
-    const aiPath = getAiConfigPathByTarget(mergedCfg.Target_address);
-    const ok2 = writeJsonSafe(aiPath, { apiKey: ai.apiKey || '' });
-    return { ok: ok1 && ok2 };
+    const ok = writeJsonSafe(configPath, mergedCfg);
+    return { ok };
 });
 
 
