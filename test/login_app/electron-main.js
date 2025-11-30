@@ -9,9 +9,11 @@ apiKeyChannel.startServer();
 let mainWindow = null;
 
 function createWindow() {
+    const iconPath = path.join(__dirname, 'icon', 'favicon1.ico');
     const win = new BrowserWindow({
         width: 520,
         height: 570,
+        icon: fs.existsSync(iconPath) ? iconPath : undefined,
         webPreferences: {
             preload: path.join(__dirname, 'preload.js'),
             contextIsolation: true,
@@ -20,7 +22,8 @@ function createWindow() {
         autoHideMenuBar: true,
         minimizable: false,
         maximizable: false,
-        resizable: false
+        resizable: false,
+        skipTaskbar: true  // 隐藏任务栏图标
     });
     win.loadFile(path.join(__dirname, 'index.html'));
     mainWindow = win;

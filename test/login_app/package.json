@@ -24,6 +24,7 @@
       "preload.js",
       "renderer.js",
       "winmm.dll",
+      "icon/**/*",
       "!models/**/*.test.js",
       "!models/**/*.spec.js",
       "!**/*.md",
@@ -38,6 +39,7 @@
     "asarUnpack": [],
     "compression": "maximum",
     "win": {
+      "icon": "icon/favicon1.ico",
       "target": [
         {
           "target": "nsis",
@@ -51,16 +53,17 @@
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
       "allowElevation": true,
-      "installerIcon": null,
-      "uninstallerIcon": null,
-      "installerHeaderIcon": null,
+      "installerIcon": "icon/favicon2.ico",
+      "uninstallerIcon": "icon/favicon2.ico",
+      "installerHeaderIcon": "icon/favicon2.ico",
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
       "shortcutName": "CxExam-AUTO",
       "include": null,
       "script": null,
       "perMachine": true,
-      "runAfterFinish": false
+      "runAfterFinish": false,
+      "deleteAppDataOnUninstall": false
     }
   },
   "scripts": {
