@@ -24,6 +24,12 @@ contextBridge.exposeInMainWorld('api', {
     },
     getNotice: async () => {
         return await ipcRenderer.invoke('get-notice');
+    },
+    getPurchaseLink: async () => {
+        return await ipcRenderer.invoke('get-purchase-link');
+    },
+    getHelpLink: async () => {
+        return await ipcRenderer.invoke('get-help-link');
     }
 });
 

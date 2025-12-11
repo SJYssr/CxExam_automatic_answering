@@ -114,12 +114,24 @@ function debounce(fn, ms) {
 if (btnPurchase) {
     btnPurchase.addEventListener('click', async () => {
         try {
-            const res = await window.api.openExternalUrl('https://m.tb.cn/h.Sqe1TUm?tk=odOcfhswxR3');
+            const res = await window.api.getPurchaseLink();
             if (!res || !res.ok) {
+                logStatus('获取购买链接失败');
+                return;
+            }
+            const data = res.data || {};
+            if (!data.success || !data.url) {
+                const code = data.errorCode ? `（错误码：${data.errorCode}）` : '';
+                const msg = data.errorMessage || '获取购买链接失败';
+                logStatus(`${msg}${code}`);
+                return;
+            }
+            const openRes = await window.api.openExternalUrl(data.url);
+            if (!openRes || !openRes.ok) {
                 logStatus('打开购买链接失败');
             }
         } catch (e) {
-            logStatus('打开购买链接异常: ' + (e && e.message ? e.message : String(e)));
+            logStatus('获取/打开购买链接异常: ' + (e && e.message ? e.message : String(e)));
         }
     });
 }
@@ -128,12 +140,24 @@ if (btnPurchase) {
 if (btnHelp) {
     btnHelp.addEventListener('click', async () => {
         try {
-            const res = await window.api.openExternalUrl('https://www.yuque.com/yucruocn/wilczp/fegosvqp6itfpa8m?singleDoc#');
+            const res = await window.api.getHelpLink();
             if (!res || !res.ok) {
+                logStatus('获取使用说明链接失败');
+                return;
+            }
+            const data = res.data || {};
+            if (!data.success || !data.url) {
+                const code = data.errorCode ? `（错误码：${data.errorCode}）` : '';
+                const msg = data.errorMessage || '获取使用说明链接失败';
+                logStatus(`${msg}${code}`);
+                return;
+            }
+            const openRes = await window.api.openExternalUrl(data.url);
+            if (!openRes || !openRes.ok) {
                 logStatus('打开使用说明链接失败');
             }
         } catch (e) {
-            logStatus('打开使用说明链接异常: ' + (e && e.message ? e.message : String(e)));
+            logStatus('获取/打开使用说明链接异常: ' + (e && e.message ? e.message : String(e)));
         }
     });
 }

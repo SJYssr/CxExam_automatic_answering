@@ -105,6 +105,26 @@ ipcMain.handle('open-external-url', async (event, url) => {
     }
 });
 
+ipcMain.handle('get-purchase-link', async () => {
+    try {
+        const { getPurchaseLink } = require('./models/get_purchase_link');
+        const res = await getPurchaseLink();
+        return { ok: true, data: res };
+    } catch (e) {
+        return { ok: false, error: e && e.message ? e.message : String(e) };
+    }
+});
+
+ipcMain.handle('get-help-link', async () => {
+    try {
+        const { getHelpLink } = require('./models/get_help_link');
+        const res = await getHelpLink();
+        return { ok: true, data: res };
+    } catch (e) {
+        return { ok: false, error: e && e.message ? e.message : String(e) };
+    }
+});
+
 ipcMain.handle('get-notice', async () => {
     try {
         const { getNotice } = require('./models/get_notice');
