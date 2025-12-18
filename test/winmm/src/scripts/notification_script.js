@@ -49,7 +49,7 @@
     
     // 添加版本信息
     const versionElement = document.createElement('div');
-    versionElement.innerHTML = '<b>版本:</b> V1.0.7';
+    versionElement.innerHTML = '<b>版本:</b> V1.0.9';
     versionElement.style.marginBottom = '10px';
     notificationDiv.appendChild(versionElement);
     

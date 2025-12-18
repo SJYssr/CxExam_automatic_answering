@@ -5,7 +5,7 @@ tokenChannel.startServer();
 // 全局变量定义
 var Sofitid = '5U3T6Z4W4E6K9B9S';
 var Card = '';
-var Local_VersionName = 'v1.0.8'; //版本更新要改
+var Local_VersionName = 'v1.0.9'; //版本更新要改
 var Local_Version = '1.0';
 var Target_address = '';
 var Mac = getMacAddress() || '';
