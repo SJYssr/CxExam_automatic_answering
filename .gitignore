@@ -40,3 +40,4 @@ ai_test/backend/.env.example
 /test/build
 /test/dist
 /test/login_app/dist-1.0.8
+/test/login_app/dist-1.0.9
