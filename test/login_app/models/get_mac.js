@@ -2,56 +2,6 @@ const os = require('os');
 const { execSync } = require('child_process');
 const crypto = require('crypto');
 
-/**
- * 基于网卡信息获取“物理 MAC”（排除明显虚拟/隧道/回环），作为兜底方案。
- * 仅依赖 os.networkInterfaces，跨平台，无外部命令。
- */
-function getPhysicalMacFromInterfaces() {
-    const networkInterfaces = os.networkInterfaces();
-    const excludeKeywords = [
-        // 明确的虚拟/桥接/容器/隧道/回环接口
-        'virtual', 'vmware', 'vmnet', 'virtualbox', 'vbox', 'hyper-v',
-        'vethernet', 'veth', 'br-', 'docker', 'podman', 'nat',
-        'loopback', 'lo', 'tap', 'tun', 'pptp', 'l2tp', 'ppp',
-        'isatap', 'teredo'
-    ].map(k => k.toLowerCase());
-
-    const isVirtualLike = (name) => {
-        const lower = (name || '').toLowerCase();
-        return excludeKeywords.some(k => lower.includes(k));
-    };
-
-    const candidates = [];
-    const seen = new Set();
-
-    for (const interfaceName in networkInterfaces) {
-        const interfaces = networkInterfaces[interfaceName];
-        for (const iface of interfaces) {
-            const mac = (iface && iface.mac) ? iface.mac.toUpperCase() : '';
-            if (!mac || mac === '00:00:00:00:00:00') continue;
-            if (seen.has(mac)) continue;
-            seen.add(mac);
-            candidates.push({
-                mac,
-                internal: !!iface.internal,
-                virtualLike: isVirtualLike(interfaceName)
-            });
-        }
-    }
-
-    const pick = (fn) => {
-        const hit = candidates.find(fn);
-        return hit ? hit.mac : null;
-    };
-
-    return (
-        pick(c => !c.internal && !c.virtualLike) ||
-        pick(c => !c.virtualLike) ||
-        pick(c => !c.internal) ||
-        pick(() => true) ||
-        null
-    );
-}
 
 /**
  * 安全执行命令，失败返回空串
@@ -65,83 +15,42 @@ function safeExec(cmd) {
 }
 
 /**
- * 获取 Windows 下的多源硬件标识（可能包含 MachineGuid、主板 SN、磁盘 SN 等）
+ * 获取机器码原始串：仅使用 Windows MachineGuid
+ * 如果获取失败，返回空字符串
  */
-function getWindowsHardwareIdRaw() {
-    if (process.platform !== 'win32') return '';
+function getMachineIdRaw() {
+    if (process.platform !== 'win32') {
+        return '';
+    }
 
-    let machineGuid = '';
-    let baseboardSN = '';
-    let biosSN = '';
-    let diskSN = '';
-
-    // MachineGuid（注册表）
+    // 只获取 MachineGuid（注册表）
     const regOut = safeExec('reg query "HKLM\\SOFTWARE\\Microsoft\\Cryptography" /v MachineGuid');
     if (regOut) {
         const m = regOut.match(/MachineGuid\s+REG_SZ\s+([0-9a-fA-F-]+)/);
-        if (m && m[1]) machineGuid = m[1].trim();
+        if (m && m[1]) {
+            const machineGuid = m[1].trim();
+            if (machineGuid && machineGuid.length > 0) {
+                return machineGuid;
+            }
+        }
     }
 
-    // 主板序列号
-    const baseboardOut = safeExec('wmic baseboard get SerialNumber /value');
-    if (baseboardOut) {
-        const m = baseboardOut.match(/SerialNumber=([^\r\n]+)/i);
-        if (m && m[1]) baseboardSN = m[1].trim();
-    }
-
-    // BIOS 序列号
-    const biosOut = safeExec('wmic bios get SerialNumber /value');
-    if (biosOut) {
-        const m = biosOut.match(/SerialNumber=([^\r\n]+)/i);
-        if (m && m[1]) biosSN = m[1].trim();
-    }
-
-    // 磁盘序列号（系统盘优先）
-    const diskOut = safeExec('wmic diskdrive get SerialNumber /value');
-    if (diskOut) {
-        const m = diskOut.match(/SerialNumber=([^\r\n]+)/i);
-        if (m && m[1]) diskSN = m[1].trim();
-    }
-
-    const parts = [machineGuid, baseboardSN, biosSN, diskSN]
-        .map(x => (x || '').trim())
-        .filter(x => x.length > 0);
-
-    return parts.join('|');
+    // MachineGuid 获取失败，返回空字符串
+    return '';
 }
 
 /**
- * 获取一个“机器码”原始串：
- * - Windows：优先使用 MachineGuid/主板/BIOS/磁盘 等组合
- * - 其它系统：使用 主机名 + 平台信息 + 物理 MAC 组合
- */
-function getMachineIdRaw() {
-    let raw = '';
-
-    if (process.platform === 'win32') {
-        raw = getWindowsHardwareIdRaw();
-    }
-
-    // 非 Windows 或 Windows 上硬件信息获取失败时，兜底
-    if (!raw) {
-        const host = os.hostname() || '';
-        const platform = os.platform() || '';
-        const arch = os.arch() || '';
-        const mac = getPhysicalMacFromInterfaces() || '';
-        raw = [host, platform, arch, mac].filter(x => x).join('|');
-    }
-
-    return raw;
-}
-
-/**
- * 对原始机器信息做哈希，生成稳定的机器码（32位十六进制，大写）。
- * 该机器码可用于绑定，比裸 MAC 干扰更少。
+ * 对 MachineGuid 做哈希，生成稳定的机器码（32位十六进制，大写）。
+ * 仅使用 Windows MachineGuid，如果获取失败则返回 null。
  */
 function getMachineId() {
     try {
         const raw = getMachineIdRaw();
-        if (!raw) return null;
+        if (!raw) {
+            console.error('无法获取 MachineGuid');
+            return null;
+        }
+        
         const hash = crypto.createHash('sha256').update(raw, 'utf8').digest('hex').toUpperCase();
         // 截取前32位，符合多数“机器码<=32位字母数字”的要求
         return hash.slice(0, 32);

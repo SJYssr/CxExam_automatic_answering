@@ -10,7 +10,18 @@ let mainWindow = null;
 let crashReporterStarted = false;
 let crashExtraUserId = '';
 
-function formatDateTimeForDir(d = new Date()) {
+function getInstallDirectory() {
+    // 获取安装目录（exe所在目录）
+    // 开发环境：使用 __dirname
+    // 打包后：使用 process.execPath 的目录
+    if (app.isPackaged) {
+        return path.dirname(process.execPath);
+    } else {
+        return __dirname;
+    }
+}
+
+function formatDateTimeForFile(d = new Date()) {
     const pad = (n) => String(n).padStart(2, '0');
     const yyyy = d.getFullYear();
     const MM = pad(d.getMonth() + 1);
@@ -24,9 +35,13 @@ function formatDateTimeForDir(d = new Date()) {
 function startCrashReporter() {
     if (crashReporterStarted) return;
     try {
-        const baseDir = path.join(app.getPath('userData'), 'logs');
-        const crashDir = path.join(baseDir, formatDateTimeForDir());
+        // 日志目录：安装目录下的 logs 文件夹
+        const installDir = getInstallDirectory();
+        const crashDir = path.join(installDir, 'logs');
+        
+        // 提前创建 logs 目录
         fs.mkdirSync(crashDir, { recursive: true });
+        
         crashReporter.start({
             companyName: 'cxexam',
             productName: 'CxExam-AUTO',
@@ -38,6 +53,45 @@ function startCrashReporter() {
                 userid: crashExtraUserId
             }
         });
+        
+        // 监听 logs 目录，当新的崩溃日志生成时，重命名为时间戳格式
+        // 使用轮询方式检查新文件（每2秒检查一次）
+        setInterval(() => {
+            try {
+                if (!fs.existsSync(crashDir)) return;
+                const files = fs.readdirSync(crashDir);
+                files.forEach(file => {
+                    const filePath = path.join(crashDir, file);
+                    const ext = path.extname(file).toLowerCase();
+                    // 只处理未重命名的崩溃日志文件（文件名不以时间戳格式开头）
+                    if ((ext === '.dmp' || file.includes('crash') || file.includes('Crash')) && 
+                        !/^\d{8}_\d{6}/.test(file)) {
+                        try {
+                            const stats = fs.statSync(filePath);
+                            const timeStr = formatDateTimeForFile(stats.birthtime || stats.mtime);
+                            const newName = `${timeStr}${ext}`;
+                            const newPath = path.join(crashDir, newName);
+                            
+                            // 如果新文件名已存在，添加序号
+                            let finalPath = newPath;
+                            let counter = 1;
+                            while (fs.existsSync(finalPath)) {
+                                const nameWithoutExt = path.basename(newPath, ext);
+                                finalPath = path.join(crashDir, `${nameWithoutExt}_${counter}${ext}`);
+                                counter++;
+                            }
+                            
+                            fs.renameSync(filePath, finalPath);
+                        } catch (e) {
+                            // 忽略重命名错误（文件可能正在被写入）
+                        }
+                    }
+                });
+            } catch (e) {
+                // 忽略目录读取错误
+            }
+        }, 2000); // 每2秒检查一次
+        
         crashReporterStarted = true;
     } catch (e) {
         console.error('启动 crashReporter 失败:', e);
