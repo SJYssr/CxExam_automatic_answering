@@ -48,10 +48,15 @@ function clearToken() {
     currentToken = '';
 }
 
+function getToken() {
+    return currentToken || '';
+}
+
 module.exports = {
     startServer,
     stopServer,
     setToken,
-    clearToken
+    clearToken,
+    getToken
 };
 

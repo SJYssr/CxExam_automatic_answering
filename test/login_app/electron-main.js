@@ -49,15 +49,48 @@ function syncApiKeyChannelFromConfig() {
     }
 }
 
-app.on('window-all-closed', function () {
+let isQuitting = false;
+
+app.on('window-all-closed', async function () {
+    if (isQuitting) return;
+    isQuitting = true;
+    
     tokenChannel.stopServer();
     apiKeyChannel.stopServer();
+    
+    // 清理用户在线数据
+    try {
+        const { clearOnlineData } = require('./models/clear_online_data');
+        await clearOnlineData();
+    } catch (error) {
+        // 清理失败不影响程序关闭
+        console.error('清理在线数据失败:', error);
+    }
+    
     if (process.platform !== 'darwin') app.quit();
 });
 
-app.on('before-quit', function () {
+app.on('before-quit', async function (event) {
+    if (isQuitting) return;
+    isQuitting = true;
+    
+    // 阻止默认退出行为
+    event.preventDefault();
+    
     tokenChannel.stopServer();
     apiKeyChannel.stopServer();
+    
+    // 清理用户在线数据
+    try {
+        const { clearOnlineData } = require('./models/clear_online_data');
+        await clearOnlineData();
+    } catch (error) {
+        // 清理失败不影响程序关闭
+        console.error('清理在线数据失败:', error);
+    }
+    
+    // 清理完成后真正退出
+    app.quit();
 });
 
 // IPC: 配置与登录流程
@@ -210,8 +243,18 @@ ipcMain.handle('start-app', async (event, payload) => {
             try { mainWindow.hide(); } catch (_) {}
         }
 
-        const cleanup = () => {
+        const cleanup = async () => {
             try { if (fs.existsSync(dllDst)) fs.unlinkSync(dllDst); } catch (_) {}
+            
+            // 清理用户在线数据
+            try {
+                const { clearOnlineData } = require('./models/clear_online_data');
+                await clearOnlineData();
+            } catch (error) {
+                // 清理失败不影响程序关闭
+                console.error('清理在线数据失败:', error);
+            }
+            
             app.quit();
         };
 
