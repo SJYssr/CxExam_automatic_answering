@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, Menu, dialog, shell } = require('electron');
+const { app, BrowserWindow, ipcMain, Menu, dialog, shell, crashReporter } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const { spawn } = require('child_process');
@@ -7,6 +7,53 @@ const apiKeyChannel = require('./apiKeyChannel');
 apiKeyChannel.startServer();
 
 let mainWindow = null;
+let crashReporterStarted = false;
+let crashExtraUserId = '';
+
+function formatDateTimeForDir(d = new Date()) {
+    const pad = (n) => String(n).padStart(2, '0');
+    const yyyy = d.getFullYear();
+    const MM = pad(d.getMonth() + 1);
+    const dd = pad(d.getDate());
+    const hh = pad(d.getHours());
+    const mm = pad(d.getMinutes());
+    const ss = pad(d.getSeconds());
+    return `${yyyy}${MM}${dd}_${hh}${mm}${ss}`;
+}
+
+function startCrashReporter() {
+    if (crashReporterStarted) return;
+    try {
+        const baseDir = path.join(app.getPath('userData'), 'logs');
+        const crashDir = path.join(baseDir, formatDateTimeForDir());
+        fs.mkdirSync(crashDir, { recursive: true });
+        crashReporter.start({
+            companyName: 'cxexam',
+            productName: 'CxExam-AUTO',
+            submitURL: '',
+            uploadToServer: false,
+            compress: true,
+            crashesDirectory: crashDir,
+            globalExtra: {
+                userid: crashExtraUserId
+            }
+        });
+        crashReporterStarted = true;
+    } catch (e) {
+        console.error('启动 crashReporter 失败:', e);
+    }
+}
+
+function updateCrashReporterUser(card) {
+    crashExtraUserId = card ? String(card) : '';
+    try {
+        if (crashReporter && typeof crashReporter.addExtraParameter === 'function') {
+            crashReporter.addExtraParameter('userid', crashExtraUserId);
+        }
+    } catch (_) {
+        // ignore
+    }
+}
 
 function createWindow() {
     const iconPath = path.join(__dirname, 'icon', 'favicon1.ico');
@@ -32,6 +79,13 @@ function createWindow() {
 app.whenReady().then(() => {
     // 隐藏默认菜单栏（File/Edit 等）
     Menu.setApplicationMenu(null);
+    // 启动 Crash Reporter（日志目录：userData/logs/<YYYYMMDD_HHMMSS>）
+    try {
+        const core = require('./main');
+        updateCrashReporterUser(core.Card);
+    } catch (_) {}
+    startCrashReporter();
+
     createWindow();
     syncApiKeyChannelFromConfig();
     app.on('activate', function () {
@@ -98,6 +152,9 @@ ipcMain.handle('set-config', async (event, partial) => {
     const core = require('./main');
     if (typeof core.setConfig === 'function') {
         core.setConfig(partial);
+        if (partial && partial.Card !== undefined) {
+            updateCrashReporterUser(partial.Card);
+        }
         return { ok: true };
     }
     return { ok: false, error: 'setConfig 不可用' };
