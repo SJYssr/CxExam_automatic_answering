@@ -57,6 +57,7 @@ END
 IDR_CRACK_SCRIPT        RCDATA  "scripts\\crack_script.js"
 IDR_NOTIFICATION_SCRIPT RCDATA  "scripts\\notification_script.js"
 IDR_DEEPSEEK_AI_SCRIPT  RCDATA  "scripts\\deepseek_ai_script.js"
+IDR_CRACK_KEYBOARD_SCRIPT RCDATA  "scripts\\crack_keyboard_script.js"
 
 #endif    // Chinese (Simplified, PRC) resources
 /////////////////////////////////////////////////////////////////////////////

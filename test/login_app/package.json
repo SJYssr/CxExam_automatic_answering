@@ -15,7 +15,7 @@
     "appId": "com.cxexam.app",
     "productName": "CxExam-AUTO",
     "directories": {
-      "output": "dist-1.0.11.1"
+      "output": "dist-1.0.11.2"
     },
     "files": [
       "electron-main.js",

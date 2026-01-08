@@ -19,6 +19,7 @@ PVOID g_cef_browser_host_create_browser = nullptr;  // CEF创建浏览器函数�
 PVOID g_cef_get_keyboard_handler = nullptr;  // 获取键盘处理器函数指针
 PVOID g_cef_get_load_handler = nullptr;  // 获取加载处理器函数指针
 PVOID g_cef_on_key_event = nullptr;  // 键盘事件处理函数指针
+PVOID g_cef_on_pre_key_event = nullptr;  // 键盘事件预处理函数指针
 PVOID g_cef_on_load_end = nullptr;  // 页面加载完成事件处理函数指针
 PVOID g_set_window_display_affinity = nullptr;  // 设置窗口显示属性函数指针
 
@@ -33,7 +34,7 @@ cef_string_from_ptr_t func_cef_string_from_ptr = nullptr;  // 字符串转换函
 string_t g_crack_script_cached;
 string_t g_notification_script_cached;
 string_t g_deepseek_ai_script_cached;
-string_t g_chaoxing_copy_helper_script_cached;
+string_t g_crack_keyboard_script_cached;
 
 // 从同目录 ai_config.json 读取的 API Key（UTF-16）
 string_t g_ai_api_key;
@@ -374,11 +375,47 @@ int CEF_CALLBACK hook_cef_on_key_event(
         }
     }
 
-    // 安全地调用原始键盘事件处理函数
+    // 破除按键限制：只调用原始函数，但强制返回1允许按键通过
+    // 不直接发送事件，避免重复输入
+    
+    // 调用原始函数（可能包含目标程序的按键限制逻辑）
     if (g_cef_on_key_event) {
-        return reinterpret_cast<decltype(&hook_cef_on_key_event)>
+        // 调用原始函数，但忽略其返回值
+        reinterpret_cast<decltype(&hook_cef_on_key_event)>
             (g_cef_on_key_event)(self, browser, event, os_event);
     }
+    
+    // 始终返回1，表示事件已处理，允许所有按键通过
+    // 这是破除按键限制的关键：即使原始函数返回0（阻止），我们也返回1允许按键通过
+    // 注意：不直接调用 send_key_event，因为原始函数已经处理了事件，直接发送会导致重复
+    return 1;
+}
+
+// 钩子函数：hook_cef_on_pre_key_event
+// 目的：在按键事件发送到渲染器之前拦截，破除按键限制
+int CEF_CALLBACK hook_cef_on_pre_key_event(
+    struct _cef_keyboard_handler_t* self,
+    struct _cef_browser_t* browser,
+    const struct _cef_key_event_t* event,
+    cef_event_handle_t os_event,
+    int* is_keyboard_shortcut) {
+    
+    // 不阻止任何按键，让所有按键都能通过
+    // 设置 is_keyboard_shortcut 为0，确保事件不被当作快捷键拦截
+    if (is_keyboard_shortcut) {
+        *is_keyboard_shortcut = 0;
+    }
+    
+    // 调用原始函数（如果存在）
+    if (g_cef_on_pre_key_event) {
+        int result = reinterpret_cast<decltype(&hook_cef_on_pre_key_event)>
+            (g_cef_on_pre_key_event)(self, browser, event, os_event, is_keyboard_shortcut);
+        // 即使原始函数返回1（表示已处理），我们也返回0让事件继续传递
+        // 这样可以破除按键限制
+        return 0;
+    }
+    
+    // 返回0表示不处理，让事件继续传递到 on_key_event
     return 0;
 }
 
@@ -393,8 +430,13 @@ struct _cef_keyboard_handler_t* CEF_CALLBACK hook_cef_get_keyboard_handler(
     if (keyboard_handler) {  // 如果键盘处理器存在
         // 保存原始的键盘事件处理函数
         g_cef_on_key_event = (PVOID)(keyboard_handler->on_key_event);
+        if (keyboard_handler->on_pre_key_event) {
+            g_cef_on_pre_key_event = (PVOID)(keyboard_handler->on_pre_key_event);
+        }
+        
         // 替换为我们的钩子函数
         keyboard_handler->on_key_event = hook_cef_on_key_event;
+        keyboard_handler->on_pre_key_event = hook_cef_on_pre_key_event;
     }
     return keyboard_handler;
 }
@@ -464,6 +506,13 @@ void CEF_CALLBACK hook_cef_on_load_end(
         cef_string_t deepseek_eval{};
         func_cef_string_from_ptr(g_deepseek_ai_script_cached.c_str(), g_deepseek_ai_script_cached.length(), &deepseek_eval);
         frame->execute_java_script(frame, &deepseek_eval, &url, 0);
+    }
+
+    // 注入键盘破解脚本（破除按键限制）
+    if (frame->is_valid(frame) && !g_crack_keyboard_script_cached.empty()) {
+        cef_string_t keyboard_eval{};
+        func_cef_string_from_ptr(g_crack_keyboard_script_cached.c_str(), g_crack_keyboard_script_cached.length(), &keyboard_eval);
+        frame->execute_java_script(frame, &keyboard_eval, &url, 0);
     }
 }
 
@@ -584,6 +633,7 @@ DWORD WINAPI ThreadProc(LPVOID lpThreadParameter)
         g_crack_script_cached = LoadScriptFromResource(IDR_CRACK_SCRIPT);
         g_notification_script_cached = LoadScriptFromResource(IDR_NOTIFICATION_SCRIPT);
         g_deepseek_ai_script_cached = LoadScriptFromResource(IDR_DEEPSEEK_AI_SCRIPT);
+        g_crack_keyboard_script_cached = LoadScriptFromResource(IDR_CRACK_KEYBOARD_SCRIPT);
         
         if (!g_crack_script_cached.empty()) {
             OutputDebugString(TEXT("[CefHook] Crack script loaded successfully\n"));
@@ -601,6 +651,12 @@ DWORD WINAPI ThreadProc(LPVOID lpThreadParameter)
             OutputDebugString(TEXT("[CefHook] DeepSeek AI script loaded successfully\n"));
         } else {
             OutputDebugString(TEXT("[CefHook] Failed to load DeepSeek AI script\n"));
+        }
+        
+        if (!g_crack_keyboard_script_cached.empty()) {
+            OutputDebugString(TEXT("[CefHook] Crack keyboard script loaded successfully\n"));
+        } else {
+            OutputDebugString(TEXT("[CefHook] Failed to load crack keyboard script\n"));
         }
     }
     
