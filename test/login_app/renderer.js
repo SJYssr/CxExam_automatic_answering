@@ -11,9 +11,13 @@ const btnPurchase = $('btnPurchase');
 const btnHelp = $('btnHelp');
 const btnUpdate = $('btnUpdate');
 const updateTooltip = $('updateTooltip');
+const btnSettings = $('btnSettings');
 const btnLogin = $('btnLogin');
 const btnStart = $('btnStart');
 const noticeBox = $('noticeBox');
+const settingsModal = $('settingsModal');
+const btnSettingsSave = $('btnSettingsSave');
+const settingsClose = $('settingsClose');
 let loggedIn = false;
 let updateButtonEnabled = false;
 
@@ -193,6 +197,44 @@ if (btnUpdate && updateTooltip) {
             }
         } catch (err) {
             logStatus('打开更新链接异常: ' + (err && err.message ? err.message : String(err)));
+        }
+    });
+}
+
+// 设置按钮：显示设置界面
+if (btnSettings) {
+    btnSettings.addEventListener('click', () => {
+        if (settingsModal) {
+            settingsModal.classList.add('show');
+        }
+    });
+}
+
+// 设置界面关闭按钮（右上角 X）
+if (settingsClose) {
+    settingsClose.addEventListener('click', () => {
+        if (settingsModal) {
+            settingsModal.classList.remove('show');
+        }
+    });
+}
+
+// 设置界面保存按钮
+if (btnSettingsSave) {
+    btnSettingsSave.addEventListener('click', () => {
+        // 保存逻辑（目前为空，因为设置界面没有任何内容）
+        if (settingsModal) {
+            settingsModal.classList.remove('show');
+        }
+        logStatus('设置已保存');
+    });
+}
+
+// 点击模态框背景关闭
+if (settingsModal) {
+    settingsModal.addEventListener('click', (e) => {
+        if (e.target === settingsModal) {
+            settingsModal.classList.remove('show');
         }
     });
 }
