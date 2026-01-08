@@ -80,6 +80,59 @@
         box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
         position: relative;
       }
+      .settings-item {
+        margin-bottom: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+      .settings-item label {
+        font-size: 14px;
+        color: #333;
+        margin-right: 15px;
+      }
+      .settings-switch {
+        position: relative;
+        display: inline-block;
+        width: 50px;
+        height: 26px;
+      }
+      .settings-switch input {
+        opacity: 0;
+        width: 0;
+        height: 0;
+      }
+      .settings-slider {
+        position: absolute;
+        cursor: pointer;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: #ccc;
+        transition: .4s;
+        border-radius: 26px;
+      }
+      .settings-slider:before {
+        position: absolute;
+        content: "";
+        height: 20px;
+        width: 20px;
+        left: 3px;
+        bottom: 3px;
+        background-color: white;
+        transition: .4s;
+        border-radius: 50%;
+      }
+      .settings-switch input:checked + .settings-slider {
+        background-color: #4CAF50;
+      }
+      .settings-switch input:checked + .settings-slider:before {
+        transform: translateX(24px);
+      }
+      .settings-switch input:focus + .settings-slider {
+        box-shadow: 0 0 1px #4CAF50;
+      }
       .settings-close {
         position: absolute;
         top: 10px;
@@ -159,6 +212,14 @@
     <div class="settings-modal" id="settingsModal">
       <div class="settings-content">
         <span class="settings-close" id="settingsClose">×</span>
+        <div class="settings-item">
+          <label for="keyCrackScript">破解脚本快捷键</label>
+          <input type="text" id="keyCrackScript" class="settings-key-input" placeholder="按键盘设置快捷键" readonly style="width: 200px; padding: 6px; border-radius: 5px; border: 1px solid #ccc; text-align: center;" />
+        </div>
+        <div class="settings-item">
+          <label for="keyAIScript">AI脚本快捷键</label>
+          <input type="text" id="keyAIScript" class="settings-key-input" placeholder="按键盘设置快捷键" readonly style="width: 200px; padding: 6px; border-radius: 5px; border: 1px solid #ccc; text-align: center;" />
+        </div>
         <div class="settings-footer">
           <button id="btnSettingsSave">保存</button>
         </div>

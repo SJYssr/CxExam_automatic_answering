@@ -4,7 +4,9 @@ const fs = require('fs');
 const { spawn } = require('child_process');
 const tokenChannel = require('./tokenChannel');
 const apiKeyChannel = require('./apiKeyChannel');
+const scriptControlChannel = require('./scriptControlChannel');
 apiKeyChannel.startServer();
+scriptControlChannel.startServer();
 
 let mainWindow = null;
 let crashReporterStarted = false;
@@ -160,8 +162,27 @@ app.whenReady().then(() => {
 function syncApiKeyChannelFromConfig() {
     try {
         const { configPath } = getConfigPaths();
-        const config = readJsonSafe(configPath, { Target_address: '', Card: '', apiKey: '' });
+        const config = readJsonSafe(configPath, { 
+            Target_address: '', 
+            Card: '', 
+            apiKey: '', 
+            enableCrackScript: true, 
+            enableAIScript: true 
+        });
         apiKeyChannel.setKey(config.apiKey || '');
+        // 同步脚本控制设置
+        scriptControlChannel.setSettings({
+            enableCrackScript: config.enableCrackScript !== undefined ? config.enableCrackScript : true,
+            enableAIScript: config.enableAIScript !== undefined ? config.enableAIScript : true,
+            crackScriptKeyCode: config.crackScriptKeyCode || 112,
+            crackScriptCtrl: config.crackScriptCtrl || false,
+            crackScriptAlt: config.crackScriptAlt || false,
+            crackScriptShift: config.crackScriptShift || false,
+            aiScriptKeyCode: config.aiScriptKeyCode || 113,
+            aiScriptCtrl: config.aiScriptCtrl || false,
+            aiScriptAlt: config.aiScriptAlt || false,
+            aiScriptShift: config.aiScriptShift || false
+        });
     } catch (_) {
         apiKeyChannel.clearKey();
     }
@@ -175,6 +196,7 @@ app.on('window-all-closed', async function () {
     
     tokenChannel.stopServer();
     apiKeyChannel.stopServer();
+    scriptControlChannel.stopServer();
     
     // 清理用户在线数据
     try {
@@ -197,6 +219,7 @@ app.on('before-quit', async function (event) {
     
     tokenChannel.stopServer();
     apiKeyChannel.stopServer();
+    scriptControlChannel.stopServer();
     
     // 清理用户在线数据
     try {
@@ -419,7 +442,21 @@ function writeJsonSafe(filePath, obj) {
 
 ipcMain.handle('get-configs', async () => {
     const { configPath } = getConfigPaths();
-    const config = readJsonSafe(configPath, { Target_address: '', Card: '', apiKey: '' });
+    const config = readJsonSafe(configPath, { 
+        Target_address: '', 
+        Card: '', 
+        apiKey: '', 
+        enableCrackScript: true, 
+        enableAIScript: true,
+        crackScriptKeyCode: 112,
+        crackScriptCtrl: false,
+        crackScriptAlt: false,
+        crackScriptShift: false,
+        aiScriptKeyCode: 113,
+        aiScriptCtrl: false,
+        aiScriptAlt: false,
+        aiScriptShift: false
+    });
     return { ok: true, config, aiConfig: { apiKey: config.apiKey || '' } };
 });
 
@@ -428,15 +465,30 @@ ipcMain.handle('set-configs', async (event, payload) => {
     const cfg = payload && payload.config ? payload.config : {};
     const ai = payload && payload.aiConfig ? payload.aiConfig : {};
 
-    // 保存主配置，包含 apiKey
+    // 保存主配置，包含 apiKey 和脚本控制设置
     const mergedCfg = {
         Target_address: cfg.Target_address || '',
         Card: cfg.Card || '',
-        apiKey: ai.apiKey || ''
+        apiKey: ai.apiKey || '',
+        enableCrackScript: cfg.enableCrackScript !== undefined ? cfg.enableCrackScript : true,
+        enableAIScript: cfg.enableAIScript !== undefined ? cfg.enableAIScript : true
     };
     const ok = writeJsonSafe(configPath, mergedCfg);
     if (ok) {
         apiKeyChannel.setKey(mergedCfg.apiKey || '');
+        // 更新脚本控制设置到管道服务器
+        scriptControlChannel.setSettings({
+            enableCrackScript: mergedCfg.enableCrackScript !== undefined ? mergedCfg.enableCrackScript : true,
+            enableAIScript: mergedCfg.enableAIScript !== undefined ? mergedCfg.enableAIScript : true,
+            crackScriptKeyCode: cfg.crackScriptKeyCode || 112,
+            crackScriptCtrl: cfg.crackScriptCtrl || false,
+            crackScriptAlt: cfg.crackScriptAlt || false,
+            crackScriptShift: cfg.crackScriptShift || false,
+            aiScriptKeyCode: cfg.aiScriptKeyCode || 113,
+            aiScriptCtrl: cfg.aiScriptCtrl || false,
+            aiScriptAlt: cfg.aiScriptAlt || false,
+            aiScriptShift: cfg.aiScriptShift || false
+        });
     } else {
         apiKeyChannel.clearKey();
     }

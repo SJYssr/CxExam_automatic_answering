@@ -18,6 +18,8 @@ const noticeBox = $('noticeBox');
 const settingsModal = $('settingsModal');
 const btnSettingsSave = $('btnSettingsSave');
 const settingsClose = $('settingsClose');
+const keyCrackScript = $('keyCrackScript');
+const keyAIScript = $('keyAIScript');
 let loggedIn = false;
 let updateButtonEnabled = false;
 
@@ -201,10 +203,165 @@ if (btnUpdate && updateTooltip) {
     });
 }
 
+// 快捷键输入框的键盘事件处理
+function setupKeyInput(inputEl, defaultKey) {
+    if (!inputEl) return;
+    
+    let isCapturing = false;
+    let pressedModifiers = {
+        ctrl: false,
+        alt: false,
+        shift: false
+    };
+    
+    inputEl.addEventListener('click', () => {
+        isCapturing = true;
+        pressedModifiers = { ctrl: false, alt: false, shift: false };
+        inputEl.value = '按任意键...';
+        inputEl.style.backgroundColor = '#fff3cd';
+        inputEl.focus(); // 确保输入框获得焦点
+    });
+    
+    inputEl.addEventListener('keydown', (e) => {
+        if (!isCapturing) return;
+        
+        // 检查是否是修饰键
+        const isModifierKey = e.key === 'Control' || e.key === 'Alt' || e.key === 'Shift' || 
+                              e.key === 'Meta' || e.key === 'OSLeft' || e.key === 'OSRight';
+        
+        // 更新修饰键状态
+        if (e.key === 'Control' || e.ctrlKey) pressedModifiers.ctrl = true;
+        if (e.key === 'Alt' || e.altKey) pressedModifiers.alt = true;
+        if (e.key === 'Shift' || e.shiftKey) pressedModifiers.shift = true;
+        
+        // 如果只是按下修饰键，不结束捕获，只更新显示
+        if (isModifierKey) {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            // 显示当前按下的修饰键
+            const parts = [];
+            if (pressedModifiers.ctrl) parts.push('Ctrl');
+            if (pressedModifiers.alt) parts.push('Alt');
+            if (pressedModifiers.shift) parts.push('Shift');
+            if (parts.length > 0) {
+                inputEl.value = parts.join('+') + '+...';
+            } else {
+                inputEl.value = '按任意键...';
+            }
+            return;
+        }
+        
+        // 按下非修饰键，结束捕获
+        e.preventDefault();
+        e.stopPropagation();
+        
+        // 构建快捷键字符串
+        const parts = [];
+        if (pressedModifiers.ctrl || e.ctrlKey) parts.push('Ctrl');
+        if (pressedModifiers.alt || e.altKey) parts.push('Alt');
+        if (pressedModifiers.shift || e.shiftKey) parts.push('Shift');
+        
+        // 获取按键名称
+        let keyName = '';
+        if (e.key.length === 1 && !isModifierKey) {
+            // 普通字符键
+            keyName = e.shiftKey ? e.key.toUpperCase() : e.key.toUpperCase();
+        } else {
+            // 处理特殊键
+            const keyMap = {
+                'F1': 'F1', 'F2': 'F2', 'F3': 'F3', 'F4': 'F4', 'F5': 'F5',
+                'F6': 'F6', 'F7': 'F7', 'F8': 'F8', 'F9': 'F9', 'F10': 'F10',
+                'F11': 'F11', 'F12': 'F12',
+                'Escape': 'Esc', 'Enter': 'Enter', 'Space': 'Space',
+                'Tab': 'Tab', 'Backspace': 'Backspace', 'Delete': 'Delete',
+                'ArrowUp': '↑', 'ArrowDown': '↓', 'ArrowLeft': '←', 'ArrowRight': '→',
+                'Home': 'Home', 'End': 'End', 'PageUp': 'PageUp', 'PageDown': 'PageDown',
+                'Insert': 'Insert', 'Pause': 'Pause', 'ScrollLock': 'ScrollLock',
+                'NumLock': 'NumLock', 'CapsLock': 'CapsLock'
+            };
+            keyName = keyMap[e.key] || e.key;
+        }
+        
+        if (keyName) {
+            parts.push(keyName);
+            inputEl.value = parts.join('+');
+            
+            // 保存键码和修饰键状态
+            inputEl.dataset.keyCode = e.keyCode.toString();
+            inputEl.dataset.ctrl = (pressedModifiers.ctrl || e.ctrlKey) ? '1' : '0';
+            inputEl.dataset.alt = (pressedModifiers.alt || e.altKey) ? '1' : '0';
+            inputEl.dataset.shift = (pressedModifiers.shift || e.shiftKey) ? '1' : '0';
+            
+            inputEl.style.backgroundColor = '#fff';
+            isCapturing = false;
+            pressedModifiers = { ctrl: false, alt: false, shift: false };
+        }
+    });
+    
+    inputEl.addEventListener('keyup', (e) => {
+        if (!isCapturing) return;
+        
+        // 更新修饰键状态（释放时）
+        if (e.key === 'Control') pressedModifiers.ctrl = false;
+        if (e.key === 'Alt') pressedModifiers.alt = false;
+        if (e.key === 'Shift') pressedModifiers.shift = false;
+    });
+    
+    inputEl.addEventListener('blur', () => {
+        if (isCapturing) {
+            inputEl.value = inputEl.dataset.originalValue || defaultKey || '';
+            inputEl.style.backgroundColor = '#fff';
+            isCapturing = false;
+            pressedModifiers = { ctrl: false, alt: false, shift: false };
+        }
+    });
+}
+
 // 设置按钮：显示设置界面
 if (btnSettings) {
-    btnSettings.addEventListener('click', () => {
+    btnSettings.addEventListener('click', async () => {
         if (settingsModal) {
+            // 加载当前设置
+            try {
+                const res = await window.api.getConfigs();
+                if (res && res.ok && res.config) {
+                    const config = res.config;
+                    if (keyCrackScript) {
+                        keyCrackScript.value = config.crackScriptKey || 'F1';
+                        keyCrackScript.dataset.originalValue = config.crackScriptKey || 'F1';
+                        keyCrackScript.dataset.keyCode = config.crackScriptKeyCode || '112'; // F1 keyCode
+                        keyCrackScript.dataset.ctrl = (config.crackScriptCtrl || false) ? '1' : '0';
+                        keyCrackScript.dataset.alt = (config.crackScriptAlt || false) ? '1' : '0';
+                        keyCrackScript.dataset.shift = (config.crackScriptShift || false) ? '1' : '0';
+                    }
+                    if (keyAIScript) {
+                        keyAIScript.value = config.aiScriptKey || 'F2';
+                        keyAIScript.dataset.originalValue = config.aiScriptKey || 'F2';
+                        keyAIScript.dataset.keyCode = config.aiScriptKeyCode || '113'; // F2 keyCode
+                        keyAIScript.dataset.ctrl = (config.aiScriptCtrl || false) ? '1' : '0';
+                        keyAIScript.dataset.alt = (config.aiScriptAlt || false) ? '1' : '0';
+                        keyAIScript.dataset.shift = (config.aiScriptShift || false) ? '1' : '0';
+                    }
+                }
+            } catch (e) {
+                // 如果加载失败，使用默认值
+                if (keyCrackScript) {
+                    keyCrackScript.value = 'F1';
+                    keyCrackScript.dataset.originalValue = 'F1';
+                    keyCrackScript.dataset.keyCode = '112';
+                }
+                if (keyAIScript) {
+                    keyAIScript.value = 'F2';
+                    keyAIScript.dataset.originalValue = 'F2';
+                    keyAIScript.dataset.keyCode = '113';
+                }
+            }
+            
+            // 设置快捷键输入框
+            setupKeyInput(keyCrackScript, 'F1');
+            setupKeyInput(keyAIScript, 'F2');
+            
             settingsModal.classList.add('show');
         }
     });
@@ -221,12 +378,53 @@ if (settingsClose) {
 
 // 设置界面保存按钮
 if (btnSettingsSave) {
-    btnSettingsSave.addEventListener('click', () => {
-        // 保存逻辑（目前为空，因为设置界面没有任何内容）
-        if (settingsModal) {
-            settingsModal.classList.remove('show');
+    btnSettingsSave.addEventListener('click', async () => {
+        try {
+            // 获取快捷键设置
+            const crackKeyCode = keyCrackScript ? parseInt(keyCrackScript.dataset.keyCode || '112') : 112;
+            const crackCtrl = keyCrackScript ? (keyCrackScript.dataset.ctrl === '1') : false;
+            const crackAlt = keyCrackScript ? (keyCrackScript.dataset.alt === '1') : false;
+            const crackShift = keyCrackScript ? (keyCrackScript.dataset.shift === '1') : false;
+            const crackKey = keyCrackScript ? (keyCrackScript.value || 'F1') : 'F1';
+            
+            const aiKeyCode = keyAIScript ? parseInt(keyAIScript.dataset.keyCode || '113') : 113;
+            const aiCtrl = keyAIScript ? (keyAIScript.dataset.ctrl === '1') : false;
+            const aiAlt = keyAIScript ? (keyAIScript.dataset.alt === '1') : false;
+            const aiShift = keyAIScript ? (keyAIScript.dataset.shift === '1') : false;
+            const aiKey = keyAIScript ? (keyAIScript.value || 'F2') : 'F2';
+            
+            // 保存到配置文件
+            const res = await window.api.setConfigs({
+                config: {
+                    Target_address: targetEl.value || '',
+                    Card: cardEl.value || '',
+                    apiKey: apikeyEl.value || '',
+                    crackScriptKey: crackKey,
+                    crackScriptKeyCode: crackKeyCode,
+                    crackScriptCtrl: crackCtrl,
+                    crackScriptAlt: crackAlt,
+                    crackScriptShift: crackShift,
+                    aiScriptKey: aiKey,
+                    aiScriptKeyCode: aiKeyCode,
+                    aiScriptCtrl: aiCtrl,
+                    aiScriptAlt: aiAlt,
+                    aiScriptShift: aiShift
+                },
+                aiConfig: { apiKey: apikeyEl.value || '' }
+            });
+            
+            if (settingsModal) {
+                settingsModal.classList.remove('show');
+            }
+            
+            if (res && res.ok) {
+                logStatus('设置已保存');
+            } else {
+                logStatus('设置保存失败');
+            }
+        } catch (e) {
+            logStatus('设置保存异常: ' + (e && e.message ? e.message : String(e)));
         }
-        logStatus('设置已保存');
     });
 }
 

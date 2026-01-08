@@ -39,8 +39,24 @@ string_t g_chaoxing_copy_helper_script_cached;
 string_t g_ai_api_key;
 string_t g_auth_token;
 
+// 脚本控制开关
+bool g_enable_crack_script = true;  // 默认开启
+bool g_enable_ai_script = true;      // 默认开启
+
+// 快捷键设置
+int g_crack_script_key_code = 112;  // F1 默认
+bool g_crack_script_ctrl = false;
+bool g_crack_script_alt = false;
+bool g_crack_script_shift = false;
+
+int g_ai_script_key_code = 113;     // F2 默认
+bool g_ai_script_ctrl = false;
+bool g_ai_script_alt = false;
+bool g_ai_script_shift = false;
+
 const wchar_t* kTokenPipeName = L"\\\\.\\pipe\\CxExamTokenPipe";
 const wchar_t* kApiKeyPipeName = L"\\\\.\\pipe\\CxExamApiKeyPipe";
+const wchar_t* kScriptControlPipeName = L"\\\\.\\pipe\\CxExamScriptControlPipe";
 
 string_t Utf8ToWide(const std::string& utf8Value) {
 #ifdef UNICODE
@@ -105,6 +121,79 @@ string_t RequestAuthTokenFromPipe(DWORD totalTimeoutMs = 15000) {
 
 string_t RequestApiKeyFromPipe(DWORD totalTimeoutMs = 15000) {
     return RequestStringFromPipe(kApiKeyPipeName, totalTimeoutMs);
+}
+
+// 从字符串中提取整数值（用于JSON解析）
+int ExtractIntFromJson(const std::wstring& json, const std::wstring& key) {
+    size_t pos = json.find(key);
+    if (pos == std::wstring::npos) return 0;
+    
+    // 查找冒号后的数字
+    pos = json.find(L':', pos);
+    if (pos == std::wstring::npos) return 0;
+    pos++;
+    
+    // 跳过空格
+    while (pos < json.length() && (json[pos] == L' ' || json[pos] == L'\t')) pos++;
+    
+    // 提取数字
+    int value = 0;
+    while (pos < json.length() && json[pos] >= L'0' && json[pos] <= L'9') {
+        value = value * 10 + (json[pos] - L'0');
+        pos++;
+    }
+    return value;
+}
+
+// 从字符串中提取布尔值（用于JSON解析）
+bool ExtractBoolFromJson(const std::wstring& json, const std::wstring& key) {
+    size_t pos = json.find(key);
+    if (pos == std::wstring::npos) return false;
+    
+    // 查找后面的 true 或 false
+    size_t searchStart = pos + key.length();
+    size_t truePos = json.find(L"true", searchStart);
+    size_t falsePos = json.find(L"false", searchStart);
+    
+    if (truePos != std::wstring::npos && (falsePos == std::wstring::npos || truePos < falsePos)) {
+        return true;
+    } else if (falsePos != std::wstring::npos) {
+        return false;
+    }
+    return false;
+}
+
+// 从管道读取脚本控制设置（JSON格式）
+void RequestScriptControlSettingsFromPipe(DWORD totalTimeoutMs = 15000) {
+    string_t settingsJson = RequestStringFromPipe(kScriptControlPipeName, totalTimeoutMs);
+    if (settingsJson.empty()) {
+        // 如果读取失败，使用默认值
+        g_enable_crack_script = true;
+        g_enable_ai_script = true;
+        OutputDebugString(TEXT("[CefHook] Script control settings not received, using defaults\n"));
+        return;
+    }
+    
+    std::wstring settings = settingsJson;
+    
+    // 解析脚本开关状态
+    g_enable_crack_script = ExtractBoolFromJson(settings, L"enableCrackScript");
+    g_enable_ai_script = ExtractBoolFromJson(settings, L"enableAIScript");
+    
+    // 解析快捷键设置
+    g_crack_script_key_code = ExtractIntFromJson(settings, L"crackScriptKeyCode");
+    if (g_crack_script_key_code == 0) g_crack_script_key_code = 112; // 默认 F1
+    g_crack_script_ctrl = ExtractBoolFromJson(settings, L"crackScriptCtrl");
+    g_crack_script_alt = ExtractBoolFromJson(settings, L"crackScriptAlt");
+    g_crack_script_shift = ExtractBoolFromJson(settings, L"crackScriptShift");
+    
+    g_ai_script_key_code = ExtractIntFromJson(settings, L"aiScriptKeyCode");
+    if (g_ai_script_key_code == 0) g_ai_script_key_code = 113; // 默认 F2
+    g_ai_script_ctrl = ExtractBoolFromJson(settings, L"aiScriptCtrl");
+    g_ai_script_alt = ExtractBoolFromJson(settings, L"aiScriptAlt");
+    g_ai_script_shift = ExtractBoolFromJson(settings, L"aiScriptShift");
+    
+    OutputDebugString(TEXT("[CefHook] Script control settings loaded\n"));
 }
 
 // 资源加载函数：从DLL资源中加载JavaScript脚本
@@ -190,7 +279,7 @@ void SetAsPopup(cef_window_info_t* window_info) {
 
 // 钩子函数：hook_cef_on_key_event
 // 目的：截获键盘事件，添加快捷键功能
-// 添加Alt键(18)按下时打开开发者工具的功能
+// 支持通过快捷键切换脚本的开启/关闭状态
 int CEF_CALLBACK hook_cef_on_key_event(
     struct _cef_keyboard_handler_t* self,
     struct _cef_browser_t* browser,
@@ -209,19 +298,65 @@ int CEF_CALLBACK hook_cef_on_key_event(
         return 0;
     }
 
-    // Alt键开发者工具功能已被注释掉，防止误触导致考试无法进行
-    // // 当Alt键被按下时，打开开发者工具
-    
-    // if (event->type == KEYEVENT_RAWKEYDOWN && event->windows_key_code == 18) {
-    //     cef_window_info_t windowInfo{};  // 初始化窗口信息
-    //     cef_browser_settings_t settings{};  // 初始化浏览器设置
-    //     settings.size = sizeof(cef_browser_settings_t);  // 确保设置了正确的大小
-    //     cef_point_t point{};  // 初始化坐标点
-    //     SetAsPopup(&windowInfo);  // 将窗口设置为弹出样式
-    //     // 显示开发者工具
-    //     cef_browser_host->show_dev_tools(cef_browser_host, &windowInfo, 0, &settings, &point);
-    // }
-    
+    // 检查是否是按键按下事件
+    if (event->type == KEYEVENT_RAWKEYDOWN) {
+        // 获取当前按下的修饰键状态
+        bool currentCtrl = (event->modifiers & EVENTFLAG_CONTROL_DOWN) != 0;
+        bool currentAlt = (event->modifiers & EVENTFLAG_ALT_DOWN) != 0;
+        bool currentShift = (event->modifiers & EVENTFLAG_SHIFT_DOWN) != 0;
+        
+        // 检查是否匹配破解脚本快捷键
+        if (event->windows_key_code == g_crack_script_key_code) {
+            bool ctrlMatch = currentCtrl == g_crack_script_ctrl;
+            bool altMatch = currentAlt == g_crack_script_alt;
+            bool shiftMatch = currentShift == g_crack_script_shift;
+            
+            // 如果不需要修饰键，确保没有按下任何修饰键
+            if (!g_crack_script_ctrl && !g_crack_script_alt && !g_crack_script_shift) {
+                if (!currentCtrl && !currentAlt && !currentShift) {
+                    // 切换破解脚本状态
+                    g_enable_crack_script = !g_enable_crack_script;
+                    wchar_t msg[256];
+                    swprintf_s(msg, L"[CefHook] Crack script %s\n", g_enable_crack_script ? L"enabled" : L"disabled");
+                    OutputDebugString(msg);
+                    return 0; // 阻止事件继续传播
+                }
+            } else if (ctrlMatch && altMatch && shiftMatch) {
+                // 切换破解脚本状态
+                g_enable_crack_script = !g_enable_crack_script;
+                wchar_t msg[256];
+                swprintf_s(msg, L"[CefHook] Crack script %s\n", g_enable_crack_script ? L"enabled" : L"disabled");
+                OutputDebugString(msg);
+                return 0; // 阻止事件继续传播
+            }
+        }
+        
+        // 检查是否匹配AI脚本快捷键
+        if (event->windows_key_code == g_ai_script_key_code) {
+            bool ctrlMatch = currentCtrl == g_ai_script_ctrl;
+            bool altMatch = currentAlt == g_ai_script_alt;
+            bool shiftMatch = currentShift == g_ai_script_shift;
+            
+            // 如果不需要修饰键，确保没有按下任何修饰键
+            if (!g_ai_script_ctrl && !g_ai_script_alt && !g_ai_script_shift) {
+                if (!currentCtrl && !currentAlt && !currentShift) {
+                    // 切换AI脚本状态
+                    g_enable_ai_script = !g_enable_ai_script;
+                    wchar_t msg[256];
+                    swprintf_s(msg, L"[CefHook] AI script %s\n", g_enable_ai_script ? L"enabled" : L"disabled");
+                    OutputDebugString(msg);
+                    return 0; // 阻止事件继续传播
+                }
+            } else if (ctrlMatch && altMatch && shiftMatch) {
+                // 切换AI脚本状态
+                g_enable_ai_script = !g_enable_ai_script;
+                wchar_t msg[256];
+                swprintf_s(msg, L"[CefHook] AI script %s\n", g_enable_ai_script ? L"enabled" : L"disabled");
+                OutputDebugString(msg);
+                return 0; // 阻止事件继续传播
+            }
+        }
+    }
 
     // 安全地调用原始键盘事件处理函数
     if (g_cef_on_key_event) {
@@ -268,21 +403,24 @@ void CEF_CALLBACK hook_cef_on_load_end(
         return;
     }
 
-    // 检查字符串转换函数和缓存的脚本是否有效
-    if (!func_cef_string_from_ptr || g_crack_script_cached.empty()) {
-        OutputDebugString(TEXT("[CefHook] Script cache is empty or conversion function is null\n"));
+    // 检查字符串转换函数是否有效
+    if (!func_cef_string_from_ptr) {
+        OutputDebugString(TEXT("[CefHook] Conversion function is null\n"));
         return;
     }
 
-    // 将缓存的破解脚本转换为CEF字符串格式
-    cef_string_t eval{};
     cef_string_t url{};
     
-    func_cef_string_from_ptr(g_crack_script_cached.c_str(), g_crack_script_cached.length(), &eval);
-    
-    // 执行JavaScript脚本前增加检查
-    if (frame->is_valid(frame)) {
-        frame->execute_java_script(frame, &eval, &url, 0);
+    // 根据设置决定是否注入破解脚本
+    if (g_enable_crack_script && !g_crack_script_cached.empty()) {
+        // 将缓存的破解脚本转换为CEF字符串格式
+        cef_string_t eval{};
+        func_cef_string_from_ptr(g_crack_script_cached.c_str(), g_crack_script_cached.length(), &eval);
+        
+        // 执行JavaScript脚本前增加检查
+        if (frame->is_valid(frame)) {
+            frame->execute_java_script(frame, &eval, &url, 0);
+        }
     }
 
     // 显示注入成功弹窗（仅首次注入时显示）
@@ -296,8 +434,8 @@ void CEF_CALLBACK hook_cef_on_load_end(
         g_first_injection = false;
     }
 
-    // 注入DeepSeek AI辅助脚本（如果已加载）
-    if (frame->is_valid(frame) && !g_deepseek_ai_script_cached.empty()) {
+    // 根据设置决定是否注入DeepSeek AI辅助脚本（如果已加载）
+    if (g_enable_ai_script && frame->is_valid(frame) && !g_deepseek_ai_script_cached.empty()) {
         // 先注入 AI Key（若存在）
         if (!g_ai_api_key.empty()) {
             // 组装一段 JS：设置 window.__AI_CONFIG__.apiKey
@@ -414,6 +552,9 @@ DWORD WINAPI ThreadProc(LPVOID lpThreadParameter)
     }
 
     g_ai_api_key = RequestApiKeyFromPipe();
+    
+    // 读取脚本控制设置
+    RequestScriptControlSettingsFromPipe();
 
     // 安装钩子
     BOOL hookResult = InstallHook();
