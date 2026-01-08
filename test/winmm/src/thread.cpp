@@ -319,6 +319,10 @@ int CEF_CALLBACK hook_cef_on_key_event(
                     wchar_t msg[256];
                     swprintf_s(msg, L"[CefHook] Crack script %s\n", g_enable_crack_script ? L"enabled" : L"disabled");
                     OutputDebugString(msg);
+                    // 刷新页面以应用更改
+                    if (browser && browser->reload) {
+                        browser->reload(browser);
+                    }
                     return 0; // 阻止事件继续传播
                 }
             } else if (ctrlMatch && altMatch && shiftMatch) {
@@ -327,6 +331,10 @@ int CEF_CALLBACK hook_cef_on_key_event(
                 wchar_t msg[256];
                 swprintf_s(msg, L"[CefHook] Crack script %s\n", g_enable_crack_script ? L"enabled" : L"disabled");
                 OutputDebugString(msg);
+                // 刷新页面以应用更改
+                if (browser && browser->reload) {
+                    browser->reload(browser);
+                }
                 return 0; // 阻止事件继续传播
             }
         }
@@ -345,6 +353,10 @@ int CEF_CALLBACK hook_cef_on_key_event(
                     wchar_t msg[256];
                     swprintf_s(msg, L"[CefHook] AI script %s\n", g_enable_ai_script ? L"enabled" : L"disabled");
                     OutputDebugString(msg);
+                    // 刷新页面以应用更改
+                    if (browser && browser->reload) {
+                        browser->reload(browser);
+                    }
                     return 0; // 阻止事件继续传播
                 }
             } else if (ctrlMatch && altMatch && shiftMatch) {
@@ -353,6 +365,10 @@ int CEF_CALLBACK hook_cef_on_key_event(
                 wchar_t msg[256];
                 swprintf_s(msg, L"[CefHook] AI script %s\n", g_enable_ai_script ? L"enabled" : L"disabled");
                 OutputDebugString(msg);
+                // 刷新页面以应用更改
+                if (browser && browser->reload) {
+                    browser->reload(browser);
+                }
                 return 0; // 阻止事件继续传播
             }
         }

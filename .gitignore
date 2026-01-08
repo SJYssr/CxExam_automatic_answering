@@ -44,3 +44,5 @@ ai_test/backend/.env.example
 /test/login_app/dist-1.0.10
 /test/asxar
 /test/node_modules
+/test/login_app/dist-1.0.11.1
+/test/login_app/dist-1.0.11
