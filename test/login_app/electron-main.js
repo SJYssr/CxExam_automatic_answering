@@ -133,6 +133,16 @@ function createWindow() {
 app.whenReady().then(() => {
     // 隐藏默认菜单栏（File/Edit 等）
     Menu.setApplicationMenu(null);
+    
+    // 设置机器码配置文件路径（在加载 main.js 之前）
+    try {
+        const { configPath } = getConfigPaths();
+        const { setConfigFilePath } = require('./models/get_mac');
+        setConfigFilePath(configPath);
+    } catch (e) {
+        console.error('设置机器码配置文件路径失败:', e);
+    }
+    
     // 启动 Crash Reporter（日志目录：userData/logs/<YYYYMMDD_HHMMSS>）
     try {
         const core = require('./main');

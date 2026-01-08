@@ -1,11 +1,15 @@
 {
   "name": "cxexam-electron",
-  "version": "1.0.10", 
+  "version": "1.0.10",
   "private": true,
   "main": "electron-main.js",
   "devDependencies": {
+    "bytenode": "^1.5.7",
     "electron": "^31.3.0",
-    "electron-builder": "^24.13.3"
+    "electron-builder": "^24.13.3",
+    "electron-bytenode-webpack-plugin": "^1.1.2",
+    "webpack": "^5.104.1",
+    "webpack-cli": "^6.0.1"
   },
   "build": {
     "appId": "com.cxexam.app",
@@ -43,7 +47,9 @@
       "target": [
         {
           "target": "nsis",
-          "arch": ["x64"]
+          "arch": [
+            "x64"
+          ]
         }
       ],
       "artifactName": "${productName}-${version}-Setup.${ext}",
@@ -71,4 +77,3 @@
     "build": "electron-builder --win"
   }
 }
-

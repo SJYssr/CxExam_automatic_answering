@@ -1,7 +1,85 @@
 const os = require('os');
 const { execSync } = require('child_process');
 const crypto = require('crypto');
+const fs = require('fs');
+const path = require('path');
 
+// 配置文件路径（由外部设置）
+let configFilePath = null;
+
+/**
+ * 设置配置文件路径
+ * @param {string} filePath - 配置文件路径
+ */
+function setConfigFilePath(filePath) {
+    configFilePath = filePath;
+}
+
+/**
+ * 从配置文件读取机器码
+ * @returns {string|null} 返回配置中的机器码，如果不存在或读取失败则返回 null
+ */
+function readCachedMachineId() {
+    if (!configFilePath) {
+        return null;
+    }
+    try {
+        if (!fs.existsSync(configFilePath)) {
+            return null;
+        }
+        const content = fs.readFileSync(configFilePath, 'utf8');
+        const config = JSON.parse(content);
+        // 从配置文件中读取 machineId
+        if (config && config.machineId && typeof config.machineId === 'string' && config.machineId.length > 0) {
+            return config.machineId;
+        }
+        return null;
+    } catch (error) {
+        console.error('从配置文件读取机器码失败:', error);
+        return null;
+    }
+}
+
+/**
+ * 保存机器码到配置文件
+ * @param {string} machineId - 要保存的机器码
+ * @returns {boolean} 保存是否成功
+ */
+function saveCachedMachineId(machineId) {
+    if (!configFilePath) {
+        console.error('配置文件路径未设置，无法保存机器码');
+        return false;
+    }
+    try {
+        const dir = path.dirname(configFilePath);
+        // 确保目录存在
+        if (!fs.existsSync(dir)) {
+            fs.mkdirSync(dir, { recursive: true });
+        }
+        
+        // 读取现有配置
+        let config = {};
+        if (fs.existsSync(configFilePath)) {
+            try {
+                const content = fs.readFileSync(configFilePath, 'utf8');
+                config = JSON.parse(content);
+            } catch (e) {
+                // 如果读取失败，使用空配置
+                config = {};
+            }
+        }
+        
+        // 更新机器码
+        config.machineId = machineId;
+        
+        // 保存配置
+        fs.writeFileSync(configFilePath, JSON.stringify(config, null, 2), 'utf8');
+        return true;
+    } catch (error) {
+        console.error('保存机器码到配置文件失败:', error);
+        return false;
+    }
+}
 
 /**
  * 安全执行命令，失败返回空串
@@ -31,10 +109,10 @@ function getMachineIdRaw() {
             const machineGuid = m[1].trim();
             if (machineGuid && machineGuid.length > 0) {
                 return machineGuid;
+                }
             }
         }
-    }
-
+        
     // MachineGuid 获取失败，返回空字符串
     return '';
 }
@@ -42,9 +120,17 @@ function getMachineIdRaw() {
 /**
  * 对 MachineGuid 做哈希，生成稳定的机器码（32位十六进制，大写）。
  * 仅使用 Windows MachineGuid，如果获取失败则返回 null。
+ * 首次获取后会缓存到文件，后续直接读取缓存。
  */
 function getMachineId() {
     try {
+        // 先尝试从缓存读取
+        const cached = readCachedMachineId();
+        if (cached) {
+            return cached;
+        }
+        
+        // 缓存不存在，获取新的机器码
         const raw = getMachineIdRaw();
         if (!raw) {
             console.error('无法获取 MachineGuid');
@@ -52,8 +138,13 @@ function getMachineId() {
         }
         
         const hash = crypto.createHash('sha256').update(raw, 'utf8').digest('hex').toUpperCase();
-        // 截取前32位，符合多数“机器码<=32位字母数字”的要求
-        return hash.slice(0, 32);
+        // 截取前32位，符合多数"机器码<=32位字母数字"的要求
+        const machineId = hash.slice(0, 32);
+        
+        // 保存到缓存文件
+        saveCachedMachineId(machineId);
+        
+        return machineId;
     } catch (e) {
         console.error('生成机器码失败:', e);
         return null;
@@ -121,7 +212,9 @@ module.exports = {
     formatMacAddress,
     // 如需直接使用未哈希的机器信息，可导出 getMachineId / getMachineIdRaw
     getMachineId,
-    getMachineIdRaw
+    getMachineIdRaw,
+    // 设置配置文件路径，用于保存和读取机器码
+    setConfigFilePath
 };
 
 // 如果直接运行此文件，则输出 MAC 地址
