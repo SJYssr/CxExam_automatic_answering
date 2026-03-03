@@ -203,6 +203,34 @@ if (btnUpdate && updateTooltip) {
     });
 }
 
+// 键盘码 -> 显示名称（全键盘，用于从 config.json 的 keyCode 还原显示）
+const keyCodeToName = {
+    8: 'Backspace', 9: 'Tab', 13: 'Enter', 16: 'Shift', 17: 'Control', 18: 'Alt', 19: 'Pause',
+    20: 'CapsLock', 27: 'Esc', 32: 'Space', 33: 'PageUp', 34: 'PageDown', 35: 'End', 36: 'Home',
+    37: '←', 38: '↑', 39: '→', 40: '↓', 45: 'Insert', 46: 'Delete',
+    48: '0', 49: '1', 50: '2', 51: '3', 52: '4', 53: '5', 54: '6', 55: '7', 56: '8', 57: '9',
+    65: 'A', 66: 'B', 67: 'C', 68: 'D', 69: 'E', 70: 'F', 71: 'G', 72: 'H', 73: 'I', 74: 'J',
+    75: 'K', 76: 'L', 77: 'M', 78: 'N', 79: 'O', 80: 'P', 81: 'Q', 82: 'R', 83: 'S', 84: 'T',
+    85: 'U', 86: 'V', 87: 'W', 88: 'X', 89: 'Y', 90: 'Z',
+    96: 'Num0', 97: 'Num1', 98: 'Num2', 99: 'Num3', 100: 'Num4', 101: 'Num5', 102: 'Num6',
+    103: 'Num7', 104: 'Num8', 105: 'Num9', 106: 'Num*', 107: 'Num+', 109: 'Num-', 110: 'Num.', 111: 'Num/',
+    112: 'F1', 113: 'F2', 114: 'F3', 115: 'F4', 116: 'F5', 117: 'F6', 118: 'F7', 119: 'F8',
+    120: 'F9', 121: 'F10', 122: 'F11', 123: 'F12',
+    144: 'NumLock', 145: 'ScrollLock',
+    186: ';', 187: '=', 188: ',', 189: '-', 190: '.', 191: '/', 192: '`',
+    219: '[', 220: '\\', 221: ']', 222: "'"
+};
+
+function formatShortcutFromKeyCode(keyCode, ctrl, alt, shift) {
+    const parts = [];
+    if (ctrl) parts.push('Ctrl');
+    if (alt) parts.push('Alt');
+    if (shift) parts.push('Shift');
+    const name = keyCodeToName[keyCode] || ('Key' + keyCode);
+    parts.push(name);
+    return parts.join('+');
+}
+
 // 快捷键输入框的键盘事件处理
 function setupKeyInput(inputEl, defaultKey) {
     if (!inputEl) return;
@@ -262,13 +290,13 @@ function setupKeyInput(inputEl, defaultKey) {
         if (pressedModifiers.alt || e.altKey) parts.push('Alt');
         if (pressedModifiers.shift || e.shiftKey) parts.push('Shift');
         
-        // 获取按键名称
+        // 获取按键名称：优先用 keyCode 对应的物理键名，这样 Shift+1 显示为 1 而不是 !
         let keyName = '';
-        if (e.key.length === 1 && !isModifierKey) {
-            // 普通字符键
+        if (keyCodeToName[e.keyCode]) {
+            keyName = keyCodeToName[e.keyCode];
+        } else if (e.key.length === 1 && !isModifierKey) {
             keyName = e.shiftKey ? e.key.toUpperCase() : e.key.toUpperCase();
         } else {
-            // 处理特殊键
             const keyMap = {
                 'F1': 'F1', 'F2': 'F2', 'F3': 'F3', 'F4': 'F4', 'F5': 'F5',
                 'F6': 'F6', 'F7': 'F7', 'F8': 'F8', 'F9': 'F9', 'F10': 'F10',
@@ -327,21 +355,32 @@ if (btnSettings) {
                 const res = await window.api.getConfigs();
                 if (res && res.ok && res.config) {
                     const config = res.config;
+                    // 从 config 的键盘码(keyCode)还原显示
                     if (keyCrackScript) {
-                        keyCrackScript.value = config.crackScriptKey || 'F1';
-                        keyCrackScript.dataset.originalValue = config.crackScriptKey || 'F1';
-                        keyCrackScript.dataset.keyCode = config.crackScriptKeyCode || '112'; // F1 keyCode
-                        keyCrackScript.dataset.ctrl = (config.crackScriptCtrl || false) ? '1' : '0';
-                        keyCrackScript.dataset.alt = (config.crackScriptAlt || false) ? '1' : '0';
-                        keyCrackScript.dataset.shift = (config.crackScriptShift || false) ? '1' : '0';
+                        const kc = config.crackScriptKeyCode !== undefined ? config.crackScriptKeyCode : 112;
+                        const c = !!(config.crackScriptCtrl || false);
+                        const a = !!(config.crackScriptAlt || false);
+                        const s = !!(config.crackScriptShift || false);
+                        const display = formatShortcutFromKeyCode(kc, c, a, s);
+                        keyCrackScript.value = display;
+                        keyCrackScript.dataset.originalValue = display;
+                        keyCrackScript.dataset.keyCode = String(kc);
+                        keyCrackScript.dataset.ctrl = c ? '1' : '0';
+                        keyCrackScript.dataset.alt = a ? '1' : '0';
+                        keyCrackScript.dataset.shift = s ? '1' : '0';
                     }
                     if (keyAIScript) {
-                        keyAIScript.value = config.aiScriptKey || 'F2';
-                        keyAIScript.dataset.originalValue = config.aiScriptKey || 'F2';
-                        keyAIScript.dataset.keyCode = config.aiScriptKeyCode || '113'; // F2 keyCode
-                        keyAIScript.dataset.ctrl = (config.aiScriptCtrl || false) ? '1' : '0';
-                        keyAIScript.dataset.alt = (config.aiScriptAlt || false) ? '1' : '0';
-                        keyAIScript.dataset.shift = (config.aiScriptShift || false) ? '1' : '0';
+                        const kc = config.aiScriptKeyCode !== undefined ? config.aiScriptKeyCode : 113;
+                        const c = !!(config.aiScriptCtrl || false);
+                        const a = !!(config.aiScriptAlt || false);
+                        const s = !!(config.aiScriptShift || false);
+                        const display = formatShortcutFromKeyCode(kc, c, a, s);
+                        keyAIScript.value = display;
+                        keyAIScript.dataset.originalValue = display;
+                        keyAIScript.dataset.keyCode = String(kc);
+                        keyAIScript.dataset.ctrl = c ? '1' : '0';
+                        keyAIScript.dataset.alt = a ? '1' : '0';
+                        keyAIScript.dataset.shift = s ? '1' : '0';
                     }
                 }
             } catch (e) {
@@ -385,26 +424,22 @@ if (btnSettingsSave) {
             const crackCtrl = keyCrackScript ? (keyCrackScript.dataset.ctrl === '1') : false;
             const crackAlt = keyCrackScript ? (keyCrackScript.dataset.alt === '1') : false;
             const crackShift = keyCrackScript ? (keyCrackScript.dataset.shift === '1') : false;
-            const crackKey = keyCrackScript ? (keyCrackScript.value || 'F1') : 'F1';
-            
+
             const aiKeyCode = keyAIScript ? parseInt(keyAIScript.dataset.keyCode || '113') : 113;
             const aiCtrl = keyAIScript ? (keyAIScript.dataset.ctrl === '1') : false;
             const aiAlt = keyAIScript ? (keyAIScript.dataset.alt === '1') : false;
             const aiShift = keyAIScript ? (keyAIScript.dataset.shift === '1') : false;
-            const aiKey = keyAIScript ? (keyAIScript.value || 'F2') : 'F2';
-            
-            // 保存到配置文件
+
+            // 保存到配置文件（仅保存键盘码 keyCode 及修饰键，不保存按键名称）
             const res = await window.api.setConfigs({
                 config: {
                     Target_address: targetEl.value || '',
                     Card: cardEl.value || '',
                     apiKey: apikeyEl.value || '',
-                    crackScriptKey: crackKey,
                     crackScriptKeyCode: crackKeyCode,
                     crackScriptCtrl: crackCtrl,
                     crackScriptAlt: crackAlt,
                     crackScriptShift: crackShift,
-                    aiScriptKey: aiKey,
                     aiScriptKeyCode: aiKeyCode,
                     aiScriptCtrl: aiCtrl,
                     aiScriptAlt: aiAlt,

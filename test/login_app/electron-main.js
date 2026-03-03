@@ -129,6 +129,15 @@ function createWindow() {
         skipTaskbar: true  // 隐藏任务栏图标
     });
     win.loadFile(path.join(__dirname, 'index.html'));
+
+    // 设备 ID 存放在用户目录 .elappid，安装/卸载应用时不变；生成后发送给渲染进程
+    const { getOrCreateDeviceId } = require('./models/get_device_id');
+    const userPath = app.getPath('home');
+    const deviceId = getOrCreateDeviceId(userPath);
+    win.webContents.once('did-finish-load', () => {
+        if (deviceId) win.webContents.send('susr-config', { appid: deviceId });
+    });
+
     mainWindow = win;
 }
 
@@ -136,13 +145,12 @@ app.whenReady().then(() => {
     // 隐藏默认菜单栏（File/Edit 等）
     Menu.setApplicationMenu(null);
     
-    // 设置机器码配置文件路径（在加载 main.js 之前）
+    // 设置 tokenChannel 从 config.json 读写 token（mac 来自 get_device_id，不存 config）
     try {
         const { configPath } = getConfigPaths();
-        const { setConfigFilePath } = require('./models/get_mac');
-        setConfigFilePath(configPath);
+        tokenChannel.setConfigPath(configPath);
     } catch (e) {
-        console.error('设置机器码配置文件路径失败:', e);
+        console.error('设置配置文件路径失败:', e);
     }
     
     // 启动 Crash Reporter（日志目录：userData/logs/<YYYYMMDD_HHMMSS>）
@@ -162,26 +170,22 @@ app.whenReady().then(() => {
 function syncApiKeyChannelFromConfig() {
     try {
         const { configPath } = getConfigPaths();
-        const config = readJsonSafe(configPath, { 
-            Target_address: '', 
-            Card: '', 
-            apiKey: '', 
-            enableCrackScript: true, 
-            enableAIScript: true 
-        });
+        const raw = readJsonSafe(configPath, {});
+        const config = { ...CONFIG_DEFAULTS, ...raw };
+        config.crackScriptKeyCode = Number(config.crackScriptKeyCode) || CONFIG_DEFAULTS.crackScriptKeyCode;
+        config.aiScriptKeyCode = Number(config.aiScriptKeyCode) || CONFIG_DEFAULTS.aiScriptKeyCode;
         apiKeyChannel.setKey(config.apiKey || '');
-        // 同步脚本控制设置
         scriptControlChannel.setSettings({
             enableCrackScript: config.enableCrackScript !== undefined ? config.enableCrackScript : true,
             enableAIScript: config.enableAIScript !== undefined ? config.enableAIScript : true,
-            crackScriptKeyCode: config.crackScriptKeyCode || 112,
-            crackScriptCtrl: config.crackScriptCtrl || false,
-            crackScriptAlt: config.crackScriptAlt || false,
-            crackScriptShift: config.crackScriptShift || false,
-            aiScriptKeyCode: config.aiScriptKeyCode || 113,
-            aiScriptCtrl: config.aiScriptCtrl || false,
-            aiScriptAlt: config.aiScriptAlt || false,
-            aiScriptShift: config.aiScriptShift || false
+            crackScriptKeyCode: config.crackScriptKeyCode,
+            crackScriptCtrl: !!config.crackScriptCtrl,
+            crackScriptAlt: !!config.crackScriptAlt,
+            crackScriptShift: !!config.crackScriptShift,
+            aiScriptKeyCode: config.aiScriptKeyCode,
+            aiScriptCtrl: !!config.aiScriptCtrl,
+            aiScriptAlt: !!config.aiScriptAlt,
+            aiScriptShift: !!config.aiScriptShift
         });
     } catch (_) {
         apiKeyChannel.clearKey();
@@ -440,23 +444,33 @@ function writeJsonSafe(filePath, obj) {
     }
 }
 
+const CONFIG_DEFAULTS = {
+    Target_address: '',
+    Card: '',
+    apiKey: '',
+    authToken: '',
+    enableCrackScript: true,
+    enableAIScript: true,
+    crackScriptKeyCode: 112,
+    crackScriptCtrl: false,
+    crackScriptAlt: false,
+    crackScriptShift: false,
+    aiScriptKeyCode: 113,
+    aiScriptCtrl: false,
+    aiScriptAlt: false,
+    aiScriptShift: false
+};
+
 ipcMain.handle('get-configs', async () => {
     const { configPath } = getConfigPaths();
-    const config = readJsonSafe(configPath, { 
-        Target_address: '', 
-        Card: '', 
-        apiKey: '', 
-        enableCrackScript: true, 
-        enableAIScript: true,
-        crackScriptKeyCode: 112,
-        crackScriptCtrl: false,
-        crackScriptAlt: false,
-        crackScriptShift: false,
-        aiScriptKeyCode: 113,
-        aiScriptCtrl: false,
-        aiScriptAlt: false,
-        aiScriptShift: false
-    });
+    const raw = readJsonSafe(configPath, {});
+    // 与默认值合并，保证旧 config 或缺字段时也有完整的按键键盘码等
+    const config = { ...CONFIG_DEFAULTS, ...raw };
+    config.crackScriptKeyCode = Number(config.crackScriptKeyCode) || CONFIG_DEFAULTS.crackScriptKeyCode;
+    config.aiScriptKeyCode = Number(config.aiScriptKeyCode) || CONFIG_DEFAULTS.aiScriptKeyCode;
+    // mac 仅来自 get_device_id，不从 config.json 读取
+    const { getOrCreateDeviceId } = require('./models/get_device_id');
+    config.Mac = getOrCreateDeviceId(app.getPath('home')) || '';
     return { ok: true, config, aiConfig: { apiKey: config.apiKey || '' } };
 });
 
@@ -464,15 +478,30 @@ ipcMain.handle('set-configs', async (event, payload) => {
     const { configPath } = getConfigPaths();
     const cfg = payload && payload.config ? payload.config : {};
     const ai = payload && payload.aiConfig ? payload.aiConfig : {};
+    // 先读取已有配置，避免 saveConfigs（只传地址/卡号/apiKey）时覆盖用户保存的快捷键
+    const existing = readJsonSafe(configPath, {});
 
-    // 保存主配置，包含 apiKey 和脚本控制设置
+    // 合并：默认值 + 已有配置 + 本次传入（仅覆盖传入的字段）
     const mergedCfg = {
-        Target_address: cfg.Target_address || '',
-        Card: cfg.Card || '',
-        apiKey: ai.apiKey || '',
-        enableCrackScript: cfg.enableCrackScript !== undefined ? cfg.enableCrackScript : true,
-        enableAIScript: cfg.enableAIScript !== undefined ? cfg.enableAIScript : true
+        ...CONFIG_DEFAULTS,
+        ...existing,
+        ...(cfg.Target_address !== undefined && { Target_address: String(cfg.Target_address || '') }),
+        ...(cfg.Card !== undefined && { Card: String(cfg.Card || '') }),
+        ...(ai.apiKey !== undefined && { apiKey: String(ai.apiKey || '') }),
+        ...(cfg.enableCrackScript !== undefined && { enableCrackScript: !!cfg.enableCrackScript }),
+        ...(cfg.enableAIScript !== undefined && { enableAIScript: !!cfg.enableAIScript }),
+        ...(cfg.crackScriptKeyCode !== undefined && { crackScriptKeyCode: Number(cfg.crackScriptKeyCode) }),
+        ...(cfg.crackScriptCtrl !== undefined && { crackScriptCtrl: !!cfg.crackScriptCtrl }),
+        ...(cfg.crackScriptAlt !== undefined && { crackScriptAlt: !!cfg.crackScriptAlt }),
+        ...(cfg.crackScriptShift !== undefined && { crackScriptShift: !!cfg.crackScriptShift }),
+        ...(cfg.aiScriptKeyCode !== undefined && { aiScriptKeyCode: Number(cfg.aiScriptKeyCode) }),
+        ...(cfg.aiScriptCtrl !== undefined && { aiScriptCtrl: !!cfg.aiScriptCtrl }),
+        ...(cfg.aiScriptAlt !== undefined && { aiScriptAlt: !!cfg.aiScriptAlt }),
+        ...(cfg.aiScriptShift !== undefined && { aiScriptShift: !!cfg.aiScriptShift })
     };
+    mergedCfg.crackScriptKeyCode = Number(mergedCfg.crackScriptKeyCode) || CONFIG_DEFAULTS.crackScriptKeyCode;
+    mergedCfg.aiScriptKeyCode = Number(mergedCfg.aiScriptKeyCode) || CONFIG_DEFAULTS.aiScriptKeyCode;
+    delete mergedCfg.Mac; // mac 仅来自 get_device_id，不写入 config.json
     const ok = writeJsonSafe(configPath, mergedCfg);
     if (ok) {
         apiKeyChannel.setKey(mergedCfg.apiKey || '');
@@ -480,14 +509,14 @@ ipcMain.handle('set-configs', async (event, payload) => {
         scriptControlChannel.setSettings({
             enableCrackScript: mergedCfg.enableCrackScript !== undefined ? mergedCfg.enableCrackScript : true,
             enableAIScript: mergedCfg.enableAIScript !== undefined ? mergedCfg.enableAIScript : true,
-            crackScriptKeyCode: cfg.crackScriptKeyCode || 112,
-            crackScriptCtrl: cfg.crackScriptCtrl || false,
-            crackScriptAlt: cfg.crackScriptAlt || false,
-            crackScriptShift: cfg.crackScriptShift || false,
-            aiScriptKeyCode: cfg.aiScriptKeyCode || 113,
-            aiScriptCtrl: cfg.aiScriptCtrl || false,
-            aiScriptAlt: cfg.aiScriptAlt || false,
-            aiScriptShift: cfg.aiScriptShift || false
+            crackScriptKeyCode: mergedCfg.crackScriptKeyCode,
+            crackScriptCtrl: !!mergedCfg.crackScriptCtrl,
+            crackScriptAlt: !!mergedCfg.crackScriptAlt,
+            crackScriptShift: !!mergedCfg.crackScriptShift,
+            aiScriptKeyCode: mergedCfg.aiScriptKeyCode,
+            aiScriptCtrl: !!mergedCfg.aiScriptCtrl,
+            aiScriptAlt: !!mergedCfg.aiScriptAlt,
+            aiScriptShift: !!mergedCfg.aiScriptShift
         });
     } else {
         apiKeyChannel.clearKey();

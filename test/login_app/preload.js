@@ -1,6 +1,17 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
+let susrConfigAppid = null;
+ipcRenderer.on('susr-config', (event, data) => {
+    susrConfigAppid = (data && data.appid != null) ? String(data.appid) : null;
+});
+
 contextBridge.exposeInMainWorld('api', {
+    getAppId: () => susrConfigAppid,
+    onSusrConfig: (callback) => {
+        if (typeof callback === 'function') {
+            ipcRenderer.on('susr-config', (event, data) => callback(data));
+        }
+    },
     setConfig: async (partial) => {
         return await ipcRenderer.invoke('set-config', partial);
     },

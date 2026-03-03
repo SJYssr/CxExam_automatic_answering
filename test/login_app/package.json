@@ -1,8 +1,11 @@
 {
   "name": "cxexam-electron",
-  "version": "1.0.11",
+  "version": "1.0.12",
   "private": true,
   "main": "electron-main.js",
+  "dependencies": {
+    "uuid": "^9.0.1"
+  },
   "devDependencies": {
     "bytenode": "^1.5.7",
     "electron": "^31.3.0",
@@ -15,7 +18,7 @@
     "appId": "com.cxexam.app",
     "productName": "CxExam-AUTO",
     "directories": {
-      "output": "dist-1.0.11.2"
+      "output": "dist-1.0.12"
     },
     "files": [
       "electron-main.js",

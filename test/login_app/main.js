@@ -1,16 +1,16 @@
-const { getMacAddress } = require('./models/get_mac');
+const { app } = require('electron');
+const { getOrCreateDeviceId } = require('./models/get_device_id');
 const tokenChannel = require('./tokenChannel');
 tokenChannel.startServer();
 
 // 全局变量定义
 var Sofitid = '5U3T6Z4W4E6K9B9S';
 var Card = '';
-var Local_VersionName = 'v1.0.10'; //版本更新要改
+var Local_VersionName = 'v1.0.12'; //版本更新要改
 var Local_Version = '1.0';
 var Target_address = '';
-var Mac = getMacAddress() || '';
-// 归一化 Mac：仅保留字母数字，并限制最大32位
-Mac = (Mac || '').replace(/[^a-zA-Z0-9]/g, '').slice(0, 32);
+// 设备 ID 从用户目录 .elappid 读取/生成，安装卸载后不变，不超过 32 位字母数字
+var Mac = getOrCreateDeviceId(app.getPath('home')) || '';
 
 // 登录流程：
 // 1) 通过 get_time 获取卡到期时间，与网络时间比较，未到期才继续
@@ -193,9 +193,7 @@ function setConfig(partial) {
     if (partial.Local_VersionName !== undefined) Local_VersionName = String(partial.Local_VersionName);
     if (partial.Local_Version !== undefined) Local_Version = String(partial.Local_Version);
     if (partial.Target_address !== undefined) Target_address = String(partial.Target_address);
-    if (partial.Mac !== undefined) {
-        Mac = String(partial.Mac).replace(/[^a-zA-Z0-9]/g, '').slice(0, 32);
-    }
+    // Mac 仅来自 get_device_id，不从 config 读取或写入
 }
 
 // 将变量与流程方法导出（变量使用 getter，确保 setConfig 后可被其它模块读取到最新值）

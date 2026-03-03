@@ -36,9 +36,8 @@ string_t g_notification_script_cached;
 string_t g_deepseek_ai_script_cached;
 string_t g_crack_keyboard_script_cached;
 
-// 从同目录 ai_config.json 读取的 API Key（UTF-16）
+
 string_t g_ai_api_key;
-string_t g_auth_token;
 
 // 脚本控制开关
 bool g_enable_crack_script = true;  // 默认开启
@@ -610,8 +609,8 @@ BOOL APIENTRY InstallHook() {
 // 线程处理函数：用于初始化钩子
 DWORD WINAPI ThreadProc(LPVOID lpThreadParameter)
 {
-    g_auth_token = RequestAuthTokenFromPipe();
-    if (g_auth_token.empty()) {
+    string_t auth_token = RequestAuthTokenFromPipe();
+    if (auth_token.empty()) {
         OutputDebugString(TEXT("[CefHook] Auth token not received, aborting hook installation\n"));
         return 0;
     }
