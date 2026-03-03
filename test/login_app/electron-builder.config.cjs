@@ -32,7 +32,6 @@ module.exports = {
   ],
   asar: true,
   asarUnpack: [
-    'bootstrap.js',
     'native_decrypt/build/Release/decrypt.node',
   ],
   compression: 'maximum',

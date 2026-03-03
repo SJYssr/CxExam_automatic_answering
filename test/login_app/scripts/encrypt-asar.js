@@ -54,6 +54,9 @@ function encryptDir(dir, key, baseDir = dir) {
     if (e.isDirectory()) {
       encryptDir(full, key, baseDir);
     } else if (e.isFile() && e.name.endsWith('.js')) {
+      // 不加密：主进程入口（bootstrap）；渲染进程直接加载的脚本（不经 require，无法被 Module hook 解密）
+      const skipNames = ['bootstrap.js', 'preload.js', 'renderer.js'];
+      if (skipNames.includes(e.name)) continue;
       const content = fs.readFileSync(full);
       if (content.length > 0 && !content.slice(0, 5).equals(MAGIC)) {
         const encrypted = encryptBuffer(key, content);
@@ -63,7 +66,7 @@ function encryptDir(dir, key, baseDir = dir) {
   }
 }
 
-function run() {
+async function run() {
   const appOutDir = process.env.ElectronBuilderAppOutDir || path.join(__dirname, '..', 'dist-1.0.12', 'win-unpacked');
   const asarPath = path.join(appOutDir, 'resources', 'app.asar');
   if (!fs.existsSync(asarPath)) {
@@ -74,9 +77,19 @@ function run() {
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'asar-encrypt-'));
   try {
     asar.extractAll(asarPath, tmpDir);
+    if (!fs.existsSync(path.join(tmpDir, 'bootstrap.js'))) {
+      console.error('encrypt-asar: bootstrap.js missing after extract');
+      process.exit(1);
+    }
     encryptDir(tmpDir, key);
     fs.unlinkSync(asarPath);
-    asar.createPackage(tmpDir, asarPath);
+    await asar.createPackage(tmpDir, asarPath);
+    const list = asar.listPackage(asarPath, {});
+    const hasBootstrap = list.some(f => f.replace(/[/\\]/g, '/').endsWith('bootstrap.js'));
+    if (!hasBootstrap) {
+      console.error('encrypt-asar: bootstrap.js missing in repacked asar:', list.slice(0, 15));
+      process.exit(1);
+    }
     console.log('encrypt-asar: encrypted app.asar at', asarPath);
   } finally {
     try {
@@ -85,4 +98,7 @@ function run() {
   }
 }
 
-run();
+run().catch((err) => {
+  console.error('encrypt-asar:', err);
+  process.exit(1);
+});
