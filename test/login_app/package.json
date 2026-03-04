@@ -36,7 +36,6 @@
       "renderer.js",
       "winmm.dll",
       "icon/**/*",
-      "native_decrypt/build/Release/decrypt.node",
       "!models/**/*.test.js",
       "!models/**/*.spec.js",
       "!**/*.md",
@@ -48,9 +47,7 @@
       "!**/node_modules/.cache/**/*"
     ],
     "asar": true,
-    "asarUnpack": [
-      "native_decrypt/build/Release/decrypt.node"
-    ],
+    "asarUnpack": [],
     "compression": "maximum",
     "win": {
       "icon": "icon/favicon1.ico",
@@ -88,6 +85,7 @@
     "build:decrypt": "node scripts/rebuild-native.js",
     "clean": "node -e \"try{require('fs').rmSync('dist-1.0.12',{recursive:true});console.log('cleaned dist-1.0.12')}catch(e){}\"",
     "check-build-tools": "node scripts/check-build-tools.js",
-    "generate-key": "node scripts/generate-key.js"
+    "generate-key": "node scripts/generate-key.js",
+    "dist": "npm run clean && npm run build"
   }
 }
