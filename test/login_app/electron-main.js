@@ -316,6 +316,51 @@ ipcMain.handle('get-notice', async () => {
     }
 });
 
+// DeepSeek 余额查询：从 config.json 读取 apiKey，无 key 时不请求
+const https = require('https');
+ipcMain.handle('get-deepseek-balance', async () => {
+    try {
+        const { configPath } = getConfigPaths();
+        const raw = readJsonSafe(configPath, {});
+        const apiKey = (raw && raw.apiKey) ? String(raw.apiKey).trim() : '';
+        if (!apiKey) {
+            return { ok: true, noKey: true };
+        }
+        const body = await new Promise((resolve, reject) => {
+            const req = https.request(
+                'https://api.deepseek.com/user/balance',
+                {
+                    method: 'GET',
+                    headers: {
+                        'Accept': 'application/json',
+                        'Authorization': 'Bearer ' + apiKey
+                    }
+                },
+                (res) => {
+                    let data = '';
+                    res.on('data', (chunk) => { data += chunk; });
+                    res.on('end', () => {
+                        try {
+                            resolve(JSON.parse(data || '{}'));
+                        } catch (_) {
+                            resolve({ _raw: data });
+                        }
+                    });
+                }
+            );
+            req.on('error', reject);
+            req.setTimeout(10000, () => {
+                req.destroy();
+                reject(new Error('请求超时'));
+            });
+            req.end();
+        });
+        return { ok: true, noKey: false, data: body };
+    } catch (e) {
+        return { ok: false, error: e && e.message ? e.message : String(e) };
+    }
+});
+
 // 启动流程：复制 DLL -> 启动 exe -> 隐藏窗口 -> 等待进程退出后清理 DLL 并退出
 ipcMain.handle('start-app', async (event, payload) => {
     try {

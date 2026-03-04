@@ -20,7 +20,11 @@ const btnSettingsSave = $('btnSettingsSave');
 const settingsClose = $('settingsClose');
 const keyCrackScript = $('keyCrackScript');
 const keyAIScript = $('keyAIScript');
+const balanceWrap = $('balanceWrap');
+const balanceTotal = $('balanceTotal');
+const balanceCurrency = $('balanceCurrency');
 let loggedIn = false;
+let balanceTimer = null;
 let updateButtonEnabled = false;
 
 function isNonEmpty(v) {
@@ -41,6 +45,68 @@ function logStatus(obj) {
 function setNoticeText(text) {
     if (noticeBox) {
         noticeBox.textContent = text;
+    }
+}
+
+// DeepSeek 余额：仅当 config 中有 apiKey 时显示并定时刷新；返回 { totalBalance, currency } 或 null/错误信息
+function parseBalance(res) {
+    if (!res || !res.ok) return { error: res && res.error ? res.error : '获取失败' };
+    if (res.noKey) return null;
+    const data = res.data;
+    if (!data || !Array.isArray(data.balance_infos) || data.balance_infos.length === 0) {
+        return { error: data && data._raw ? '解析异常' : '暂无余额信息' };
+    }
+    const info = data.balance_infos[0];
+    const total_balance = (info.total_balance != null && info.total_balance !== '') ? String(info.total_balance) : '--';
+    const currency = (info.currency != null && info.currency !== '') ? String(info.currency) : '';
+    return { totalBalance: total_balance, currency };
+}
+
+async function refreshBalance() {
+    if (!balanceWrap || !balanceTotal || !window.api || typeof window.api.getDeepseekBalance !== 'function') return;
+    try {
+        const res = await window.api.getDeepseekBalance();
+        if (res && res.ok && res.noKey) {
+            if (balanceWrap) balanceWrap.style.display = 'none';
+            if (balanceTimer) { clearInterval(balanceTimer); balanceTimer = null; }
+            return;
+        }
+        const parsed = parseBalance(res);
+        if (parsed === null) return;
+        if (parsed.error) {
+            balanceTotal.textContent = parsed.error;
+            if (balanceCurrency) balanceCurrency.textContent = '';
+        } else {
+            balanceTotal.textContent = parsed.totalBalance;
+            if (balanceCurrency) balanceCurrency.textContent = parsed.currency;
+        }
+        if (balanceWrap) balanceWrap.style.display = '';
+    } catch (_) {
+        if (balanceTotal) balanceTotal.textContent = '获取异常';
+        if (balanceCurrency) balanceCurrency.textContent = '';
+        if (balanceWrap) balanceWrap.style.display = '';
+    }
+}
+
+function startBalancePolling() {
+    if (balanceTimer) return;
+    balanceTimer = setInterval(refreshBalance, 60000);
+}
+
+async function updateBalanceVisibility() {
+    if (!balanceWrap || !window.api || typeof window.api.getConfigs !== 'function') return;
+    try {
+        const res = await window.api.getConfigs();
+        const apiKey = (res && res.config && res.config.apiKey) ? String(res.config.apiKey).trim() : '';
+        if (!apiKey) {
+            if (balanceWrap) balanceWrap.style.display = 'none';
+            if (balanceTimer) { clearInterval(balanceTimer); balanceTimer = null; }
+            return;
+        }
+        await refreshBalance();
+        startBalancePolling();
+    } catch (_) {
+        if (balanceWrap) balanceWrap.style.display = 'none';
     }
 }
 
@@ -454,6 +520,7 @@ if (btnSettingsSave) {
             
             if (res && res.ok) {
                 logStatus('设置已保存');
+                updateBalanceVisibility();
             } else {
                 logStatus('设置保存失败');
             }
@@ -552,6 +619,8 @@ async function saveConfigs() {
         const res = await window.api.setConfigs(payload);
         if (res && res.error) {
             // 静默处理错误
+        } else {
+            updateBalanceVisibility();
         }
     } catch (_) {}
 }
@@ -573,7 +642,9 @@ iconChooseExe.addEventListener('click', async () => {
 });
 
 // 初始：加载配置填充
-loadConfigsAndFill();
+loadConfigsAndFill().then(() => {
+    updateBalanceVisibility();
+});
 loadNotice();
 
 

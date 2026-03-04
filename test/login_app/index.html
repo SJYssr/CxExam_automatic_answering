@@ -25,7 +25,19 @@
       .notice-content { max-height: 120px; overflow-y: auto; white-space: pre-wrap; word-break: break-word; scrollbar-width: none; -ms-overflow-style: none; }
       .notice-content::-webkit-scrollbar { display: none; }
       .disclaimer { font-size: 11px; color: #666; text-align: center; display: block; max-width: 360px; line-height: 1.4; padding: 10px; border: 1px solid #e1e4e8; border-radius: 10px; background: #f8f8f8; }
-      .button-group { text-align: center; position: relative; }
+      .button-group { text-align: center; }
+      .version-row { position: relative; margin-top: 16px; min-height: 20px; }
+      .balance-wrap {
+        position: absolute;
+        left: 0;
+        top: 50%;
+        transform: translateY(-50%);
+        font-size: 13px;
+        color: #333;
+      }
+      .balance-wrap .balance-label { margin-right: 4px; }
+      .balance-wrap .balance-total { font-size: 15px; color: #1a73e8; font-weight: bold; }
+      .balance-wrap .balance-currency { font-size: 12px; color: #000; font-weight: bold; margin-left: 2px; }
       .update-tooltip {
         position: absolute;
         bottom: calc(100% + 8px);
@@ -54,7 +66,7 @@
         border: 6px solid transparent;
         border-top-color: #333;
       }
-      .version { text-align: center; font-size: 12px; color: #999; margin-top: 16px; }
+      .version { text-align: center; font-size: 12px; color: #999; margin-top: 0; }
       /* 设置界面模态框 */
       .settings-modal {
         display: none;
@@ -206,7 +218,14 @@
       <button id="btnLogin">登录</button>
       <button id="btnStart">启动</button>
     </div>
-    <div class="version">---CxExam-AUTO-v1.0.12---</div>
+    <div class="version-row">
+      <div id="balanceWrap" class="balance-wrap" style="display: none;">
+        <span class="balance-label">API余额</span>
+        <span id="balanceTotal" class="balance-total">--</span>
+        <span id="balanceCurrency" class="balance-currency"></span>
+      </div>
+      <div class="version">---CxExam-AUTO-v1.0.12---</div>
+    </div>
 
     <!-- 设置界面模态框 -->
     <div class="settings-modal" id="settingsModal">

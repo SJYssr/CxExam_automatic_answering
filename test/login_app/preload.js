@@ -41,6 +41,9 @@ contextBridge.exposeInMainWorld('api', {
     },
     getHelpLink: async () => {
         return await ipcRenderer.invoke('get-help-link');
+    },
+    getDeepseekBalance: async () => {
+        return await ipcRenderer.invoke('get-deepseek-balance');
     }
 });
 
