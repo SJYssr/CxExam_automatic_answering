@@ -364,9 +364,20 @@ ipcMain.handle('get-deepseek-balance', async () => {
 // 启动流程：复制 DLL -> 启动 exe -> 隐藏窗口 -> 等待进程退出后清理 DLL 并退出
 ipcMain.handle('start-app', async (event, payload) => {
     try {
-        const exePath = payload && payload.exePath ? String(payload.exePath) : '';
+        const rawExePath = payload && payload.exePath ? String(payload.exePath) : '';
+        const exePath = rawExePath.trim().replace(/^"(.*)"$/, '$1');
         if (!exePath || !fs.existsSync(exePath)) {
             return { ok: false, error: '目标可执行文件不存在' };
+        }
+        let exeStat = null;
+        try {
+            exeStat = fs.statSync(exePath);
+        } catch (_) {}
+        if (!exeStat || !exeStat.isFile()) {
+            return { ok: false, error: '目标路径不是可执行文件，请选择 .exe 文件' };
+        }
+        if (path.extname(exePath).toLowerCase() !== '.exe') {
+            return { ok: false, error: '仅支持启动 .exe 文件' };
         }
 
         const targetDir = path.dirname(exePath);
@@ -428,6 +439,23 @@ ipcMain.handle('start-app', async (event, payload) => {
             child = spawn(exePath, [], { cwd: targetDir, windowsHide: true, detached: false, stdio: 'ignore' });
         } catch (e) {
             return { ok: false, error: '启动目标程序失败: ' + (e && e.message ? e.message : String(e)) };
+        }
+        const spawnReady = await new Promise((resolve) => {
+            let settled = false;
+            const done = (result) => {
+                if (settled) return;
+                settled = true;
+                resolve(result);
+            };
+            child.once('error', (err) => {
+                done({ ok: false, error: err && err.message ? err.message : String(err) });
+            });
+            child.once('spawn', () => done({ ok: true }));
+            // 兼容个别环境不触发 spawn 事件的情况，避免卡住
+            setTimeout(() => done({ ok: true }), 800);
+        });
+        if (!spawnReady.ok) {
+            return { ok: false, error: '启动目标程序失败: ' + spawnReady.error };
         }
 
         // 隐藏自身窗口与任务栏图标
