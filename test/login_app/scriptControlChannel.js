@@ -6,6 +6,9 @@ let server = null;
 let currentSettings = {
     enableCrackScript: true,  // 默认开启破解脚本
     enableAIScript: true,     // 默认开启AI脚本
+    aiModel: 'deepseek-v4-flash',  // 默认AI模型
+    enableThinking: true,          // 默认开启推理模式
+    reasoningEffort: 'high',       // 默认推理强度高
     // 快捷键设置
     crackScriptKeyCode: 112,  // F1 默认
     crackScriptCtrl: false,
@@ -14,7 +17,11 @@ let currentSettings = {
     aiScriptKeyCode: 113,      // F2 默认
     aiScriptCtrl: false,
     aiScriptAlt: false,
-    aiScriptShift: false
+    aiScriptShift: false,
+    modelSwitchKeyCode: 114,   // F3 默认 切换AI模型
+    modelSwitchCtrl: false,
+    modelSwitchAlt: false,
+    modelSwitchShift: false
 };
 
 function startServer() {
@@ -84,6 +91,31 @@ function setSettings(settings) {
         }
         if (typeof settings.aiScriptShift === 'boolean') {
             currentSettings.aiScriptShift = settings.aiScriptShift;
+        }
+        // 更新AI模型
+        if (typeof settings.aiModel === 'string') {
+            currentSettings.aiModel = settings.aiModel;
+        }
+        // 更新推理模式
+        if (typeof settings.enableThinking === 'boolean') {
+            currentSettings.enableThinking = settings.enableThinking;
+        }
+        // 更新推理强度
+        if (typeof settings.reasoningEffort === 'string') {
+            currentSettings.reasoningEffort = settings.reasoningEffort;
+        }
+        // 更新模型切换快捷键
+        if (settings.modelSwitchKeyCode !== undefined) {
+            currentSettings.modelSwitchKeyCode = parseInt(settings.modelSwitchKeyCode) || 114;
+        }
+        if (typeof settings.modelSwitchCtrl === 'boolean') {
+            currentSettings.modelSwitchCtrl = settings.modelSwitchCtrl;
+        }
+        if (typeof settings.modelSwitchAlt === 'boolean') {
+            currentSettings.modelSwitchAlt = settings.modelSwitchAlt;
+        }
+        if (typeof settings.modelSwitchShift === 'boolean') {
+            currentSettings.modelSwitchShift = settings.modelSwitchShift;
         }
     }
 }

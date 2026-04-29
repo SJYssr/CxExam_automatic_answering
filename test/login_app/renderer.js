@@ -20,6 +20,11 @@ const btnSettingsSave = $('btnSettingsSave');
 const settingsClose = $('settingsClose');
 const keyCrackScript = $('keyCrackScript');
 const keyAIScript = $('keyAIScript');
+const aiModelSelect = $('aiModelSelect');
+const keyModelSwitch = $('keyModelSwitch');
+const toggleThinking = $('toggleThinking');
+const reasoningEffortSelect = $('reasoningEffortSelect');
+const reasoningEffortItem = $('reasoningEffortItem');
 const balanceWrap = $('balanceWrap');
 const balanceTotal = $('balanceTotal');
 const balanceCurrency = $('balanceCurrency');
@@ -448,6 +453,29 @@ if (btnSettings) {
                         keyAIScript.dataset.alt = a ? '1' : '0';
                         keyAIScript.dataset.shift = s ? '1' : '0';
                     }
+                    if (aiModelSelect) {
+                        aiModelSelect.value = config.aiModel || 'deepseek-v4-flash';
+                    }
+                    if (toggleThinking) {
+                        toggleThinking.checked = config.enableThinking !== false;
+                    }
+                    if (reasoningEffortSelect) {
+                        reasoningEffortSelect.value = config.reasoningEffort || 'high';
+                        reasoningEffortSelect.disabled = !toggleThinking.checked;
+                    }
+                    if (keyModelSwitch) {
+                        const kc = config.modelSwitchKeyCode !== undefined ? config.modelSwitchKeyCode : 114;
+                        const c = !!(config.modelSwitchCtrl || false);
+                        const a = !!(config.modelSwitchAlt || false);
+                        const s = !!(config.modelSwitchShift || false);
+                        const display = formatShortcutFromKeyCode(kc, c, a, s);
+                        keyModelSwitch.value = display;
+                        keyModelSwitch.dataset.originalValue = display;
+                        keyModelSwitch.dataset.keyCode = String(kc);
+                        keyModelSwitch.dataset.ctrl = c ? '1' : '0';
+                        keyModelSwitch.dataset.alt = a ? '1' : '0';
+                        keyModelSwitch.dataset.shift = s ? '1' : '0';
+                    }
                 }
             } catch (e) {
                 // 如果加载失败，使用默认值
@@ -461,12 +489,35 @@ if (btnSettings) {
                     keyAIScript.dataset.originalValue = 'F2';
                     keyAIScript.dataset.keyCode = '113';
                 }
+                if (aiModelSelect) {
+                    aiModelSelect.value = 'deepseek-v4-flash';
+                }
+                if (toggleThinking) {
+                    toggleThinking.checked = true;
+                }
+                if (reasoningEffortSelect) {
+                    reasoningEffortSelect.value = 'high';
+                    reasoningEffortSelect.disabled = false;
+                }
+                if (keyModelSwitch) {
+                    keyModelSwitch.value = 'F3';
+                    keyModelSwitch.dataset.originalValue = 'F3';
+                    keyModelSwitch.dataset.keyCode = '114';
+                }
             }
             
             // 设置快捷键输入框
             setupKeyInput(keyCrackScript, 'F1');
             setupKeyInput(keyAIScript, 'F2');
-            
+            setupKeyInput(keyModelSwitch, 'F3');
+
+            // 推理模式开关联动：关闭时禁用推理强度下拉框
+            if (toggleThinking && reasoningEffortSelect) {
+                toggleThinking.onchange = function () {
+                    reasoningEffortSelect.disabled = !toggleThinking.checked;
+                };
+            }
+
             settingsModal.classList.add('show');
         }
     });
@@ -496,12 +547,20 @@ if (btnSettingsSave) {
             const aiAlt = keyAIScript ? (keyAIScript.dataset.alt === '1') : false;
             const aiShift = keyAIScript ? (keyAIScript.dataset.shift === '1') : false;
 
+            const modelSwitchKeyCode = keyModelSwitch ? parseInt(keyModelSwitch.dataset.keyCode || '114') : 114;
+            const modelSwitchCtrl = keyModelSwitch ? (keyModelSwitch.dataset.ctrl === '1') : false;
+            const modelSwitchAlt = keyModelSwitch ? (keyModelSwitch.dataset.alt === '1') : false;
+            const modelSwitchShift = keyModelSwitch ? (keyModelSwitch.dataset.shift === '1') : false;
+
             // 保存到配置文件（仅保存键盘码 keyCode 及修饰键，不保存按键名称）
             const res = await window.api.setConfigs({
                 config: {
                     Target_address: targetEl.value || '',
                     Card: cardEl.value || '',
                     apiKey: apikeyEl.value || '',
+                    aiModel: aiModelSelect ? aiModelSelect.value : 'deepseek-v4-flash',
+                    enableThinking: toggleThinking ? toggleThinking.checked : true,
+                    reasoningEffort: reasoningEffortSelect ? reasoningEffortSelect.value : 'high',
                     crackScriptKeyCode: crackKeyCode,
                     crackScriptCtrl: crackCtrl,
                     crackScriptAlt: crackAlt,
@@ -509,7 +568,11 @@ if (btnSettingsSave) {
                     aiScriptKeyCode: aiKeyCode,
                     aiScriptCtrl: aiCtrl,
                     aiScriptAlt: aiAlt,
-                    aiScriptShift: aiShift
+                    aiScriptShift: aiShift,
+                    modelSwitchKeyCode: modelSwitchKeyCode,
+                    modelSwitchCtrl: modelSwitchCtrl,
+                    modelSwitchAlt: modelSwitchAlt,
+                    modelSwitchShift: modelSwitchShift
                 },
                 aiConfig: { apiKey: apikeyEl.value || '' }
             });
@@ -598,15 +661,28 @@ async function loadConfigsAndFill() {
             if (res.config) {
                 if (!isNonEmpty(targetEl.value)) targetEl.value = res.config.Target_address || '';
                 if (!isNonEmpty(cardEl.value)) cardEl.value = res.config.Card || '';
-                // apiKey 现在也在 config 中
                 if (!isNonEmpty(apikeyEl.value)) apikeyEl.value = res.config.apiKey || '';
             }
-            // 兼容旧版本：如果 aiConfig 存在，也尝试读取
             if (res.aiConfig && !isNonEmpty(apikeyEl.value)) {
                 apikeyEl.value = res.aiConfig.apiKey || '';
             }
         }
     } catch (_) {}
+    // 首次启动：自动搜索 CxExam.exe
+    if (!isNonEmpty(targetEl.value) && window.api.findCxExam) {
+        try {
+            const prevPlaceholder = targetEl.placeholder;
+            targetEl.placeholder = '正在定位目标文件';
+            const found = await window.api.findCxExam();
+            if (found && found.ok && found.path) {
+                targetEl.value = found.path;
+                await saveConfigs();
+            }
+            targetEl.placeholder = prevPlaceholder;
+        } catch (_) {
+            targetEl.placeholder = '请选择 CxExam.exe 文件路径';
+        }
+    }
     updateButtons();
 }
 

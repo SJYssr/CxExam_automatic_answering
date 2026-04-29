@@ -39,12 +39,20 @@
     }
     window.__deepseekAILoaded = true;
 
-    // DeepSeek API配置（从宿主注入的 window.__AI_CONFIG__.apiKey 获取）
+    // DeepSeek API配置（从宿主注入的 window.__AI_CONFIG__ 获取）
     const DEEPSEEK_API_KEY = (window.__AI_CONFIG__ && window.__AI_CONFIG__.apiKey)
         ? window.__AI_CONFIG__.apiKey
         : '';
-    const DEEPSEEK_API_ENDPOINT = 'https://api.deepseek.com/v1/chat/completions';
-    const AI_MODEL = 'deepseek-chat';
+    const DEEPSEEK_API_ENDPOINT = 'https://api.deepseek.com/chat/completions';
+    const AI_MODEL = (window.__AI_CONFIG__ && window.__AI_CONFIG__.model)
+        ? window.__AI_CONFIG__.model
+        : 'deepseek-v4-flash';
+    const ENABLE_THINKING = (window.__AI_CONFIG__ && typeof window.__AI_CONFIG__.enableThinking === 'boolean')
+        ? window.__AI_CONFIG__.enableThinking
+        : true;
+    const REASONING_EFFORT = (window.__AI_CONFIG__ && window.__AI_CONFIG__.reasoningEffort)
+        ? window.__AI_CONFIG__.reasoningEffort
+        : 'high';
 
     // 初始化脚本
     function initScript() {
@@ -664,58 +672,64 @@
      */
     async function fetchDeepSeekAnswer(prompt) {
         try {
-            const response = await fetch(DEEPSEEK_API_ENDPOINT, {
+            var reqBody = {
+                model: AI_MODEL,
+                messages: [
+                    { role: "system", content: "你是一个专业的考试辅导AI，请根据题目和选项，直接给出最准确的答案。对于简答题，请返回格式为'答案,这样回答的原因'。不要解释，不要说任何多余的话。如果需要，请直接给出选项字母（如：A, B, AB），或者\"对\"、\"错\"，或者填充内容（如：1）。重要：请不要使用任何Markdown格式符号（如**粗体**、*斜体*、#标题、`代码`、-列表等），直接输出纯文本答案。" },
+                    { role: "user", content: prompt }
+                ],
+                temperature: 0.1,
+                max_tokens: 4096,
+                stream: false,
+                thinking: { type: ENABLE_THINKING ? "enabled" : "disabled" }
+            };
+            if (ENABLE_THINKING) {
+                reqBody.reasoning_effort = REASONING_EFFORT;
+            }
+
+            var response = await fetch(DEEPSEEK_API_ENDPOINT, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
-                    "Authorization": `Bearer ${DEEPSEEK_API_KEY}`
+                    "Authorization": "Bearer " + DEEPSEEK_API_KEY
                 },
-                body: JSON.stringify({
-                    model: AI_MODEL,
-                    messages: [
-                        { role: "system", content: "你是一个专业的考试辅导AI，请根据题目和选项，直接给出最准确的答案。对于简答题，请返回格式为'答案,这样回答的原因'。不要解释，不要说任何多余的话。如果需要，请直接给出选项字母（如：A, B, AB），或者\"对\"、\"错\"，或者填充内容（如：1）。重要：请不要使用任何Markdown格式符号（如**粗体**、*斜体*、#标题、`代码`、-列表等），直接输出纯文本答案。" },
-                        { role: "user", content: prompt }
-                    ],
-                    temperature: 0.1,
-                    max_tokens: 1024,
-                    stream: false
-                })
+                body: JSON.stringify(reqBody)
             });
-            
+
             if (!response.ok) {
-                throw new Error(`HTTP错误: ${response.status} ${response.statusText}`);
+                throw new Error("HTTP错误: " + response.status + " " + response.statusText);
             }
-            
-            const data = await response.json();
-            
-            if (data.choices && data.choices.length > 0 && data.choices[0].message && data.choices[0].message.content) {
-                const aiContent = data.choices[0].message.content.trim();
-                
-                // 先清理Markdown格式符号
-                let cleanedAnswer = cleanMarkdownFormat(aiContent);
-                
-                // 再移除引号和开头的编号（保留原有的清理逻辑）
-                cleanedAnswer = cleanedAnswer
-                    .replace(/['""'"'.]/g, '')
-                    .replace(/^\d+\.\s*/, '')
-                    .trim();
-                
-                return cleanedAnswer;
-            } else if (data.error) {
-                let errorMessage = `API Error: ${data.error.message}`;
-                if (data.error.code === 'invalid_api_key') {
-                    errorMessage += " (API Key 无效，请检查)";
-                } else if (data.error.code === 'insufficient_quota') {
-                    errorMessage += " (额度不足，请充值)";
-                } else if (data.error.code === 'model_not_found') {
-                    errorMessage += " (模型不存在或不可用)";
-                }
+
+            var data = await response.json();
+            var aiContent = '';
+
+            if (data.error) {
+                var errorMessage = "API Error: " + data.error.message;
+                if (data.error.code === 'invalid_api_key') errorMessage += " (API Key 无效，请检查)";
+                else if (data.error.code === 'insufficient_quota') errorMessage += " (额度不足，请充值)";
+                else if (data.error.code === 'model_not_found') errorMessage += " (模型不存在或不可用)";
                 throw new Error(errorMessage);
-            } else {
-                throw new Error('DeepSeek API 返回未知格式的响应或空响应。');
             }
+            if (data.choices && data.choices.length > 0 && data.choices[0].message) {
+                var msg = data.choices[0].message;
+                aiContent = (msg.content && msg.content.trim()) || (msg.reasoning_content && msg.reasoning_content.trim()) || '';
+            }
+
+            if (!aiContent) {
+                throw new Error('DeepSeek API 返回空响应');
+            }
+
+            // 先清理Markdown格式符号
+            var cleanedAnswer = cleanMarkdownFormat(aiContent);
+            // 再移除引号和开头的编号
+            cleanedAnswer = cleanedAnswer
+                .replace(/['""'"'.]/g, '')
+                .replace(/^\d+\.\s*/, '')
+                .trim();
+
+            return cleanedAnswer;
         } catch (error) {
-            if (error.name === 'TypeError' && error.message.includes('fetch')) {
+            if (error.name === 'TypeError' && error.message.indexOf('fetch') !== -1) {
                 throw new Error('网络连接失败，请检查网络连接或稍后再试。');
             }
             throw error;

@@ -54,6 +54,15 @@ bool g_ai_script_ctrl = false;
 bool g_ai_script_alt = false;
 bool g_ai_script_shift = false;
 
+std::wstring g_ai_model = L"deepseek-v4-flash";  // AI模型选择
+bool g_enable_thinking = true;                    // 推理模式（默认开启）
+std::wstring g_reasoning_effort = L"high";        // 推理强度（默认高）
+
+int g_model_switch_key_code = 114;  // F3 默认 切换AI模型
+bool g_model_switch_ctrl = false;
+bool g_model_switch_alt = false;
+bool g_model_switch_shift = false;
+
 const wchar_t* kTokenPipeName = L"\\\\.\\pipe\\CxExamTokenPipe";
 const wchar_t* kApiKeyPipeName = L"\\\\.\\pipe\\CxExamApiKeyPipe";
 const wchar_t* kScriptControlPipeName = L"\\\\.\\pipe\\CxExamScriptControlPipe";
@@ -163,6 +172,26 @@ bool ExtractBoolFromJson(const std::wstring& json, const std::wstring& key) {
     return false;
 }
 
+// 从字符串中提取字符串值（用于JSON解析）
+std::wstring ExtractStringFromJson(const std::wstring& json, const std::wstring& key) {
+    size_t pos = json.find(key);
+    if (pos == std::wstring::npos) return L"";
+
+    // 跳过 key，找到冒号位置
+    size_t colonPos = json.find(L':', pos + key.length());
+    if (colonPos == std::wstring::npos) return L"";
+
+    // 找到冒号后值的起始引号
+    size_t openQuote = json.find(L'"', colonPos + 1);
+    if (openQuote == std::wstring::npos) return L"";
+
+    // 找到值的结束引号
+    size_t closeQuote = json.find(L'"', openQuote + 1);
+    if (closeQuote == std::wstring::npos) return L"";
+
+    return json.substr(openQuote + 1, closeQuote - openQuote - 1);
+}
+
 // 从管道读取脚本控制设置（JSON格式）
 void RequestScriptControlSettingsFromPipe(DWORD totalTimeoutMs = 15000) {
     string_t settingsJson = RequestStringFromPipe(kScriptControlPipeName, totalTimeoutMs);
@@ -192,7 +221,29 @@ void RequestScriptControlSettingsFromPipe(DWORD totalTimeoutMs = 15000) {
     g_ai_script_ctrl = ExtractBoolFromJson(settings, L"aiScriptCtrl");
     g_ai_script_alt = ExtractBoolFromJson(settings, L"aiScriptAlt");
     g_ai_script_shift = ExtractBoolFromJson(settings, L"aiScriptShift");
-    
+
+    // 解析AI模型选择
+    std::wstring model = ExtractStringFromJson(settings, L"aiModel");
+    if (!model.empty()) {
+        g_ai_model = model;
+    }
+
+    // 解析推理模式
+    g_enable_thinking = ExtractBoolFromJson(settings, L"enableThinking");
+
+    // 解析推理强度
+    std::wstring effort = ExtractStringFromJson(settings, L"reasoningEffort");
+    if (!effort.empty()) {
+        g_reasoning_effort = effort;
+    }
+
+    // 解析模型切换快捷键
+    g_model_switch_key_code = ExtractIntFromJson(settings, L"modelSwitchKeyCode");
+    if (g_model_switch_key_code == 0) g_model_switch_key_code = 114; // 默认 F3
+    g_model_switch_ctrl = ExtractBoolFromJson(settings, L"modelSwitchCtrl");
+    g_model_switch_alt = ExtractBoolFromJson(settings, L"modelSwitchAlt");
+    g_model_switch_shift = ExtractBoolFromJson(settings, L"modelSwitchShift");
+
     OutputDebugString(TEXT("[CefHook] Script control settings loaded\n"));
 }
 
@@ -344,7 +395,7 @@ int CEF_CALLBACK hook_cef_on_key_event(
             bool ctrlMatch = currentCtrl == g_ai_script_ctrl;
             bool altMatch = currentAlt == g_ai_script_alt;
             bool shiftMatch = currentShift == g_ai_script_shift;
-            
+
             // 如果不需要修饰键，确保没有按下任何修饰键
             if (!g_ai_script_ctrl && !g_ai_script_alt && !g_ai_script_shift) {
                 if (!currentCtrl && !currentAlt && !currentShift) {
@@ -370,6 +421,44 @@ int CEF_CALLBACK hook_cef_on_key_event(
                     browser->reload(browser);
                 }
                 return 0; // 阻止事件继续传播
+            }
+        }
+
+        // 检查是否匹配模型切换快捷键
+        if (event->windows_key_code == g_model_switch_key_code) {
+            bool ctrlMatch = currentCtrl == g_model_switch_ctrl;
+            bool altMatch = currentAlt == g_model_switch_alt;
+            bool shiftMatch = currentShift == g_model_switch_shift;
+
+            if (!g_model_switch_ctrl && !g_model_switch_alt && !g_model_switch_shift) {
+                if (!currentCtrl && !currentAlt && !currentShift) {
+                    // 在两个模型之间切换
+                    if (g_ai_model == L"deepseek-v4-flash") {
+                        g_ai_model = L"deepseek-v4-pro";
+                    } else {
+                        g_ai_model = L"deepseek-v4-flash";
+                    }
+                    wchar_t msg[256];
+                    swprintf_s(msg, L"[CefHook] AI model switched to %s\n", g_ai_model.c_str());
+                    OutputDebugString(msg);
+                    if (browser && browser->reload) {
+                        browser->reload(browser);
+                    }
+                    return 0;
+                }
+            } else if (ctrlMatch && altMatch && shiftMatch) {
+                if (g_ai_model == L"deepseek-v4-flash") {
+                    g_ai_model = L"deepseek-v4-pro";
+                } else {
+                    g_ai_model = L"deepseek-v4-flash";
+                }
+                wchar_t msg[256];
+                swprintf_s(msg, L"[CefHook] AI model switched to %s\n", g_ai_model.c_str());
+                OutputDebugString(msg);
+                if (browser && browser->reload) {
+                    browser->reload(browser);
+                }
+                return 0;
             }
         }
     }
@@ -493,10 +582,10 @@ void CEF_CALLBACK hook_cef_on_load_end(
 
     // 根据设置决定是否注入DeepSeek AI辅助脚本（如果已加载）
     if (g_enable_ai_script && frame->is_valid(frame) && !g_deepseek_ai_script_cached.empty()) {
-        // 先注入 AI Key（若存在）
+        // 先注入 AI Key和模型（若存在）
         if (!g_ai_api_key.empty()) {
-            // 组装一段 JS：设置 window.__AI_CONFIG__.apiKey
-            std::wstring setKey = L"(function(){ try{ var c=window.__AI_CONFIG__||{}; c.apiKey=\"" + g_ai_api_key + L"\"; window.__AI_CONFIG__=c; }catch(e){} })();";
+            // 组装一段 JS：设置 window.__AI_CONFIG__
+            std::wstring setKey = L"(function(){ try{ var c=window.__AI_CONFIG__||{}; c.apiKey=\"" + g_ai_api_key + L"\"; c.model=\"" + g_ai_model + L"\"; c.enableThinking=" + (g_enable_thinking ? L"true" : L"false") + L"; c.reasoningEffort=\"" + g_reasoning_effort + L"\"; window.__AI_CONFIG__=c; }catch(e){} })();";
             cef_string_t key_eval{}; cef_string_t key_url{};
             func_cef_string_from_ptr(setKey.c_str(), setKey.length(), &key_eval);
             frame->execute_java_script(frame, &key_eval, &key_url, 0);

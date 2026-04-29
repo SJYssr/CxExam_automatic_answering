@@ -114,8 +114,8 @@ function updateCrashReporterUser(card) {
 function createWindow() {
     const iconPath = path.join(__dirname, 'icon', 'favicon1.ico');
     const win = new BrowserWindow({
-        width: 520,
-        height: 570,
+        width: 540,
+        height: 620,
         icon: fs.existsSync(iconPath) ? iconPath : undefined,
         webPreferences: {
             preload: path.join(__dirname, 'preload.js'),
@@ -178,6 +178,9 @@ function syncApiKeyChannelFromConfig() {
         scriptControlChannel.setSettings({
             enableCrackScript: config.enableCrackScript !== undefined ? config.enableCrackScript : true,
             enableAIScript: config.enableAIScript !== undefined ? config.enableAIScript : true,
+            aiModel: config.aiModel || 'deepseek-v4-flash',
+            enableThinking: config.enableThinking !== false,
+            reasoningEffort: config.reasoningEffort || 'high',
             crackScriptKeyCode: config.crackScriptKeyCode,
             crackScriptCtrl: !!config.crackScriptCtrl,
             crackScriptAlt: !!config.crackScriptAlt,
@@ -185,7 +188,11 @@ function syncApiKeyChannelFromConfig() {
             aiScriptKeyCode: config.aiScriptKeyCode,
             aiScriptCtrl: !!config.aiScriptCtrl,
             aiScriptAlt: !!config.aiScriptAlt,
-            aiScriptShift: !!config.aiScriptShift
+            aiScriptShift: !!config.aiScriptShift,
+            modelSwitchKeyCode: config.modelSwitchKeyCode,
+            modelSwitchCtrl: !!config.modelSwitchCtrl,
+            modelSwitchAlt: !!config.modelSwitchAlt,
+            modelSwitchShift: !!config.modelSwitchShift
         });
     } catch (_) {
         apiKeyChannel.clearKey();
@@ -524,6 +531,9 @@ const CONFIG_DEFAULTS = {
     authToken: '',
     enableCrackScript: true,
     enableAIScript: true,
+    aiModel: 'deepseek-v4-flash',
+    enableThinking: true,
+    reasoningEffort: 'high',
     crackScriptKeyCode: 112,
     crackScriptCtrl: false,
     crackScriptAlt: false,
@@ -531,7 +541,11 @@ const CONFIG_DEFAULTS = {
     aiScriptKeyCode: 113,
     aiScriptCtrl: false,
     aiScriptAlt: false,
-    aiScriptShift: false
+    aiScriptShift: false,
+    modelSwitchKeyCode: 114,
+    modelSwitchCtrl: false,
+    modelSwitchAlt: false,
+    modelSwitchShift: false
 };
 
 ipcMain.handle('get-configs', async () => {
@@ -563,6 +577,9 @@ ipcMain.handle('set-configs', async (event, payload) => {
         ...(ai.apiKey !== undefined && { apiKey: String(ai.apiKey || '') }),
         ...(cfg.enableCrackScript !== undefined && { enableCrackScript: !!cfg.enableCrackScript }),
         ...(cfg.enableAIScript !== undefined && { enableAIScript: !!cfg.enableAIScript }),
+        ...(cfg.aiModel !== undefined && { aiModel: String(cfg.aiModel || 'deepseek-v4-flash') }),
+        ...(cfg.enableThinking !== undefined && { enableThinking: !!cfg.enableThinking }),
+        ...(cfg.reasoningEffort !== undefined && { reasoningEffort: String(cfg.reasoningEffort || 'high') }),
         ...(cfg.crackScriptKeyCode !== undefined && { crackScriptKeyCode: Number(cfg.crackScriptKeyCode) }),
         ...(cfg.crackScriptCtrl !== undefined && { crackScriptCtrl: !!cfg.crackScriptCtrl }),
         ...(cfg.crackScriptAlt !== undefined && { crackScriptAlt: !!cfg.crackScriptAlt }),
@@ -570,7 +587,11 @@ ipcMain.handle('set-configs', async (event, payload) => {
         ...(cfg.aiScriptKeyCode !== undefined && { aiScriptKeyCode: Number(cfg.aiScriptKeyCode) }),
         ...(cfg.aiScriptCtrl !== undefined && { aiScriptCtrl: !!cfg.aiScriptCtrl }),
         ...(cfg.aiScriptAlt !== undefined && { aiScriptAlt: !!cfg.aiScriptAlt }),
-        ...(cfg.aiScriptShift !== undefined && { aiScriptShift: !!cfg.aiScriptShift })
+        ...(cfg.aiScriptShift !== undefined && { aiScriptShift: !!cfg.aiScriptShift }),
+        ...(cfg.modelSwitchKeyCode !== undefined && { modelSwitchKeyCode: Number(cfg.modelSwitchKeyCode) }),
+        ...(cfg.modelSwitchCtrl !== undefined && { modelSwitchCtrl: !!cfg.modelSwitchCtrl }),
+        ...(cfg.modelSwitchAlt !== undefined && { modelSwitchAlt: !!cfg.modelSwitchAlt }),
+        ...(cfg.modelSwitchShift !== undefined && { modelSwitchShift: !!cfg.modelSwitchShift })
     };
     mergedCfg.crackScriptKeyCode = Number(mergedCfg.crackScriptKeyCode) || CONFIG_DEFAULTS.crackScriptKeyCode;
     mergedCfg.aiScriptKeyCode = Number(mergedCfg.aiScriptKeyCode) || CONFIG_DEFAULTS.aiScriptKeyCode;
@@ -582,6 +603,9 @@ ipcMain.handle('set-configs', async (event, payload) => {
         scriptControlChannel.setSettings({
             enableCrackScript: mergedCfg.enableCrackScript !== undefined ? mergedCfg.enableCrackScript : true,
             enableAIScript: mergedCfg.enableAIScript !== undefined ? mergedCfg.enableAIScript : true,
+            aiModel: mergedCfg.aiModel || 'deepseek-v4-flash',
+            enableThinking: mergedCfg.enableThinking !== false,
+            reasoningEffort: mergedCfg.reasoningEffort || 'high',
             crackScriptKeyCode: mergedCfg.crackScriptKeyCode,
             crackScriptCtrl: !!mergedCfg.crackScriptCtrl,
             crackScriptAlt: !!mergedCfg.crackScriptAlt,
@@ -589,12 +613,60 @@ ipcMain.handle('set-configs', async (event, payload) => {
             aiScriptKeyCode: mergedCfg.aiScriptKeyCode,
             aiScriptCtrl: !!mergedCfg.aiScriptCtrl,
             aiScriptAlt: !!mergedCfg.aiScriptAlt,
-            aiScriptShift: !!mergedCfg.aiScriptShift
+            aiScriptShift: !!mergedCfg.aiScriptShift,
+            modelSwitchKeyCode: mergedCfg.modelSwitchKeyCode,
+            modelSwitchCtrl: !!mergedCfg.modelSwitchCtrl,
+            modelSwitchAlt: !!mergedCfg.modelSwitchAlt,
+            modelSwitchShift: !!mergedCfg.modelSwitchShift
         });
     } else {
         apiKeyChannel.clearKey();
     }
     return { ok };
+});
+
+// 自动搜索 CxExam.exe
+const os = require('os');
+
+function searchCxExamInDir(dir, maxDepth) {
+    if (maxDepth === undefined) maxDepth = 2;
+    var results = [];
+    try {
+        if (!fs.existsSync(dir)) return results;
+        var entries = fs.readdirSync(dir, { withFileTypes: true });
+        for (var i = 0; i < entries.length; i++) {
+            var entry = entries[i];
+            var fullPath = path.join(dir, entry.name);
+            try {
+                if (entry.isFile() && entry.name.toLowerCase() === 'cxexam.exe') {
+                    results.push(fullPath);
+                } else if (entry.isDirectory() && maxDepth > 0 && !entry.name.startsWith('.') && !entry.name.startsWith('$')) {
+                    results = results.concat(searchCxExamInDir(fullPath, maxDepth - 1));
+                }
+            } catch (_) {}
+        }
+    } catch (_) {}
+    return results;
+}
+
+ipcMain.handle('find-cxexam', async () => {
+    var searchRoots = [];
+    var home = os.homedir();
+    searchRoots.push(path.join(home, 'Desktop'));
+    searchRoots.push(path.join(home, 'Downloads'));
+    var progDir = process.env.ProgramFiles;
+    if (progDir) searchRoots.push(progDir);
+    var progX86 = process.env['ProgramFiles(x86)'];
+    if (progX86) searchRoots.push(progX86);
+    if (fs.existsSync('D:\\')) searchRoots.push('D:\\');
+
+    for (var i = 0; i < searchRoots.length; i++) {
+        var found = searchCxExamInDir(searchRoots[i], 3);
+        if (found.length > 0) {
+            return { ok: true, path: found[0] };
+        }
+    }
+    return { ok: false };
 });
 
 

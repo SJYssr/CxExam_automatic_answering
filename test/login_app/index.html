@@ -6,57 +6,322 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>CxExam-AUTO</title>
     <style>
-      html, body { overflow: hidden; }
-      body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', 'PingFang SC', 'Microsoft YaHei', sans-serif; margin: 16px; }
-      .row { margin-bottom: 12px; }
-      label { display: inline-block; width: 140px; }
-      .input-wrap { display: inline-block; position: relative; }
-      input { width: 420px; padding: 6px 36px 6px 8px; border-radius: 10px; }
-      .icon-in {
-        position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
-        cursor: pointer; user-select: none; opacity: 0.75; font-size: 14px;
+      :root {
+        --primary: #4F46E5;
+        --primary-hover: #4338CA;
+        --primary-light: #EEF2FF;
+        --success: #059669;
+        --danger: #DC2626;
+        --warning: #D97706;
+        --bg: #F3F4F6;
+        --card: #FFFFFF;
+        --border: #E5E7EB;
+        --text: #111827;
+        --text-secondary: #6B7280;
+        --text-muted: #9CA3AF;
+        --radius: 10px;
+        --radius-sm: 6px;
+        --shadow: 0 1px 3px rgba(0,0,0,.08), 0 1px 2px rgba(0,0,0,.06);
+        --shadow-md: 0 4px 6px rgba(0,0,0,.07), 0 2px 4px rgba(0,0,0,.06);
+        --shadow-lg: 0 10px 25px rgba(0,0,0,.1);
       }
-      .icon-in:hover { opacity: 1; }
-      #status { white-space: pre-wrap; word-wrap: break-word; overflow-wrap: break-word; background: #f6f8fa; border: 1px solid #e1e4e8; padding: 10px; min-height: 25px; max-width: 450px; border-radius: 10px; overflow-y: auto; }
-      button { padding: 8px 16px; margin-right: 5px; border-radius: 10px; }
-      .info-row { display: flex; justify-content: center; gap: 16px; align-items: stretch; margin-bottom: 12px; }
-      .notice-box { width: 220px; border: 1px solid #e1e4e8; border-radius: 10px; background: #ffffff; padding: 10px; font-size: 12px; color: #000000; line-height: 1.5; box-shadow: inset 0 0 0 1px rgba(0,0,0,0.02); }
-      .notice-title { font-weight: bold; margin-bottom: 6px; text-align: center; }
-      .notice-content { max-height: 120px; overflow-y: auto; white-space: pre-wrap; word-break: break-word; scrollbar-width: none; -ms-overflow-style: none; }
-      .notice-content::-webkit-scrollbar { display: none; }
-      .disclaimer { font-size: 11px; color: #666; text-align: center; display: block; max-width: 360px; line-height: 1.4; padding: 10px; border: 1px solid #e1e4e8; border-radius: 10px; background: #f8f8f8; }
-      .button-group { text-align: center; }
-      .version-row { position: relative; margin-top: 16px; min-height: 20px; }
-      .balance-wrap {
+
+      * { box-sizing: border-box; margin: 0; padding: 0; }
+      html, body { overflow: hidden; height: 100%; }
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        font-size: 14px;
+        line-height: 1.5;
+        display: flex;
+        justify-content: center;
+        padding: 10px 16px;
+      }
+
+      /* ====== 主容器 ====== */
+      .app-container {
+        width: 100%;
+        max-width: 480px;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+
+      /* ====== 头部 ====== */
+      .app-header {
+        text-align: center;
+        padding: 4px 0 2px;
+      }
+      .app-header .logo {
+        font-size: 20px;
+        font-weight: 700;
+        color: var(--primary);
+        letter-spacing: -.3px;
+      }
+      .app-header .subtitle {
+        font-size: 11px;
+        color: var(--text-muted);
+        margin-top: 1px;
+      }
+
+      /* ====== 卡片 ====== */
+      .card {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 14px 16px;
+        box-shadow: var(--shadow);
+      }
+      .card-title {
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--text-secondary);
+        text-transform: uppercase;
+        letter-spacing: .5px;
+        margin-bottom: 10px;
+      }
+
+      /* ====== 表单行 ====== */
+      .form-row {
+        display: flex;
+        align-items: center;
+        margin-bottom: 8px;
+      }
+      .form-row:last-child { margin-bottom: 0; }
+      .form-label {
+        min-width: 75px;
+        font-size: 13px;
+        font-weight: 500;
+        color: var(--text);
+        flex-shrink: 0;
+      }
+      .form-input-wrap {
+        flex: 1;
+        position: relative;
+      }
+      .form-input {
+        width: 100%;
+        padding: 8px 34px 8px 12px;
+        border: 1.5px solid var(--border);
+        border-radius: var(--radius-sm);
+        font-size: 13px;
+        color: var(--text);
+        background: #F9FAFB;
+        transition: border-color .15s, box-shadow .15s, background .15s;
+        outline: none;
+      }
+      .form-input:focus {
+        border-color: var(--primary);
+        box-shadow: 0 0 0 3px rgba(79,70,229,.1);
+        background: #fff;
+      }
+      .form-input:disabled {
+        opacity: .5;
+        cursor: not-allowed;
+      }
+      .form-input::placeholder { color: var(--text-muted); }
+      .form-icon {
         position: absolute;
-        left: 0;
+        right: 8px;
         top: 50%;
         transform: translateY(-50%);
-        font-size: 13px;
-        color: #333;
+        cursor: pointer;
+        user-select: none;
+        font-size: 15px;
+        opacity: .55;
+        transition: opacity .15s;
+        padding: 2px;
       }
-      .balance-wrap .balance-label { margin-right: 4px; }
-      .balance-wrap .balance-total { font-size: 15px; color: #1a73e8; font-weight: bold; }
-      .balance-wrap .balance-currency { font-size: 12px; color: #000; font-weight: bold; margin-left: 2px; }
+      .form-icon:hover { opacity: 1; }
+
+      /* ====== 状态栏 ====== */
+      .status-bar {
+        padding: 8px 12px;
+        border-radius: var(--radius-sm);
+        font-size: 13px;
+        min-height: 38px;
+        white-space: pre-wrap;
+        word-break: break-word;
+        background: #F9FAFB;
+        border: 1px solid var(--border);
+        color: var(--text-secondary);
+        transition: background .2s, border-color .2s;
+      }
+      .status-bar.success { background: #ECFDF5; border-color: #A7F3D0; color: var(--success); }
+      .status-bar.error { background: #FEF2F2; border-color: #FECACA; color: var(--danger); }
+
+      /* ====== 按钮 ====== */
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 8px 18px;
+        border-radius: var(--radius-sm);
+        font-size: 13px;
+        font-weight: 500;
+        border: 1.5px solid transparent;
+        cursor: pointer;
+        transition: all .15s;
+        outline: none;
+        white-space: nowrap;
+      }
+      .btn:active { transform: scale(.97); }
+      .btn:disabled { opacity: .4; cursor: not-allowed; transform: none; }
+      .btn-primary {
+        background: var(--primary);
+        color: #fff;
+        border-color: var(--primary);
+      }
+      .btn-primary:hover:not(:disabled) { background: var(--primary-hover); }
+      .btn-success {
+        background: var(--success);
+        color: #fff;
+      }
+      .btn-success:hover:not(:disabled) { background: #047857; }
+      .btn-outline {
+        background: #fff;
+        color: var(--text);
+        border-color: var(--border);
+      }
+      .btn-outline:hover:not(:disabled) { background: #F9FAFB; border-color: #D1D5DB; }
+      .btn-ghost {
+        background: transparent;
+        color: var(--text-secondary);
+        border-color: transparent;
+        padding: 8px 12px;
+      }
+      .btn-ghost:hover:not(:disabled) { background: #F3F4F6; color: var(--text); }
+
+      .btn-group {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+      .btn-group-right { justify-content: flex-end; }
+      .btn-group-center { justify-content: center; }
+
+      /* ====== 底部按钮区 ====== */
+      .action-buttons {
+        display: flex;
+        gap: 8px;
+        justify-content: center;
+        flex-wrap: wrap;
+      }
+      .action-row {
+        display: flex;
+        gap: 8px;
+        justify-content: center;
+        width: 100%;
+      }
+      .action-row .btn-util {
+        flex: 1;
+        max-width: 85px;
+      }
+      .action-row .btn-main {
+        flex: 1;
+        max-width: 200px;
+        padding: 10px 24px;
+        font-size: 14px;
+        font-weight: 600;
+      }
+
+      /* ====== 公告 & 免责卡片 ====== */
+      .info-cards {
+        display: flex;
+        gap: 8px;
+      }
+      .notice-card {
+        flex: 0 0 185px;
+        background: #FFFBEB;
+        border: 1px solid #FDE68A;
+        border-radius: var(--radius);
+        padding: 8px 10px;
+        font-size: 11px;
+        line-height: 1.5;
+        box-shadow: var(--shadow);
+      }
+      .notice-card .notice-title {
+        font-weight: 700;
+        font-size: 12px;
+        margin-bottom: 4px;
+        color: #92400E;
+        text-align: center;
+      }
+      .notice-card .notice-content {
+        max-height: 75px;
+        overflow-y: auto;
+        color: #78350F;
+        white-space: pre-wrap;
+        word-break: break-word;
+      }
+      .notice-card .notice-content::-webkit-scrollbar { display: none; }
+      .disclaimer-card {
+        flex: 1;
+        background: #fff;
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 8px 10px;
+        font-size: 11px;
+        color: var(--text-muted);
+        line-height: 1.45;
+        box-shadow: var(--shadow);
+      }
+
+      /* ====== 底部版本 & 余额 ====== */
+      .footer-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        min-height: 22px;
+      }
+      .balance-badge {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        font-size: 11px;
+        padding: 4px 10px;
+        border-radius: 20px;
+        background: var(--primary-light);
+        color: var(--primary);
+        font-weight: 500;
+      }
+      .balance-badge .balance-value { font-weight: 700; font-size: 13px; }
+      .version-tag {
+        font-size: 12px;
+        font-weight: 600;
+        color: #fff;
+        background: var(--primary);
+        padding: 3px 10px;
+        border-radius: 12px;
+        letter-spacing: .3px;
+      }
+
+      /* ====== 更新按钮提示 ====== */
+      .update-wrapper {
+        position: relative;
+        display: flex;
+        flex: 1;
+        max-width: 85px;
+      }
+      .update-wrapper .btn { width: 100%; }
       .update-tooltip {
         position: absolute;
         bottom: calc(100% + 8px);
         left: 50%;
         transform: translateX(-50%);
         padding: 6px 12px;
-        background: #333;
+        background: #1F2937;
         color: #fff;
-        border-radius: 6px;
+        border-radius: var(--radius-sm);
         font-size: 12px;
         white-space: nowrap;
         opacity: 0;
         pointer-events: none;
-        transition: opacity 0.5s ease;
+        transition: opacity .3s;
         z-index: 1000;
       }
-      .update-tooltip.show {
-        opacity: 1;
-      }
+      .update-tooltip.show { opacity: 1; }
       .update-tooltip::after {
         content: '';
         position: absolute;
@@ -64,183 +329,291 @@
         left: 50%;
         transform: translateX(-50%);
         border: 6px solid transparent;
-        border-top-color: #333;
+        border-top-color: #1F2937;
       }
-      .version { text-align: center; font-size: 12px; color: #999; margin-top: 0; }
-      /* 设置界面模态框 */
+
+      /* ====== 设置模态框 ====== */
       .settings-modal {
         display: none;
         position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: rgba(0, 0, 0, 0.5);
+        inset: 0;
+        background: rgba(0,0,0,.45);
+        backdrop-filter: blur(2px);
         z-index: 2000;
         justify-content: center;
         align-items: center;
       }
-      .settings-modal.show {
-        display: flex;
-      }
+      .settings-modal.show { display: flex; }
       .settings-content {
-        background: #fff;
-        border-radius: 10px;
-        padding: 30px;
-        min-width: 400px;
-        max-width: 600px;
-        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+        background: var(--card);
+        border-radius: 14px;
+        padding: 22px 28px;
+        width: 420px;
+        max-height: 82vh;
+        overflow-y: auto;
+        box-shadow: var(--shadow-lg);
         position: relative;
+        animation: modalIn .2s ease;
       }
-      .settings-item {
-        margin-bottom: 20px;
+      @keyframes modalIn {
+        from { opacity: 0; transform: translateY(-12px) scale(.97); }
+        to { opacity: 1; transform: translateY(0) scale(1); }
+      }
+      .settings-header {
+        font-size: 15px;
+        font-weight: 700;
+        margin-bottom: 16px;
+        color: var(--text);
+      }
+      .settings-section {
+        margin-bottom: 14px;
+      }
+      .settings-section-title {
+        font-size: 11px;
+        font-weight: 600;
+        color: var(--text-muted);
+        text-transform: uppercase;
+        letter-spacing: .5px;
+        margin-bottom: 8px;
+        padding-bottom: 4px;
+        border-bottom: 1px solid var(--border);
+      }
+      .settings-row {
         display: flex;
         align-items: center;
         justify-content: space-between;
+        margin-bottom: 10px;
+        min-height: 28px;
       }
-      .settings-item label {
-        font-size: 14px;
-        color: #333;
-        margin-right: 15px;
+      .settings-row:last-child { margin-bottom: 0; }
+      .settings-label {
+        font-size: 13px;
+        font-weight: 500;
+        color: var(--text);
       }
+      .settings-label-hint {
+        font-size: 11px;
+        color: var(--text-muted);
+        font-weight: 400;
+      }
+      .settings-key-input {
+        width: 190px;
+        padding: 7px 10px;
+        border: 1.5px solid var(--border);
+        border-radius: var(--radius-sm);
+        font-size: 13px;
+        text-align: center;
+        background: #F9FAFB;
+        cursor: pointer;
+        transition: border-color .15s, background .15s;
+        outline: none;
+      }
+      .settings-key-input:focus { border-color: var(--primary); background: #fff; }
+      .settings-select {
+        width: 190px;
+        padding: 7px 10px;
+        border: 1.5px solid var(--border);
+        border-radius: var(--radius-sm);
+        font-size: 13px;
+        background: #F9FAFB;
+        cursor: pointer;
+        outline: none;
+      }
+      .settings-select:focus { border-color: var(--primary); }
+      .settings-select:disabled { opacity: .4; cursor: not-allowed; }
+
+      /* 开关 */
       .settings-switch {
         position: relative;
         display: inline-block;
-        width: 50px;
-        height: 26px;
+        width: 46px;
+        height: 24px;
+        flex-shrink: 0;
       }
-      .settings-switch input {
-        opacity: 0;
-        width: 0;
-        height: 0;
-      }
+      .settings-switch input { opacity: 0; width: 0; height: 0; }
       .settings-slider {
         position: absolute;
         cursor: pointer;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background-color: #ccc;
-        transition: .4s;
-        border-radius: 26px;
+        inset: 0;
+        background: #D1D5DB;
+        transition: .25s;
+        border-radius: 24px;
       }
-      .settings-slider:before {
-        position: absolute;
+      .settings-slider::before {
         content: "";
-        height: 20px;
-        width: 20px;
+        position: absolute;
+        height: 18px;
+        width: 18px;
         left: 3px;
         bottom: 3px;
-        background-color: white;
-        transition: .4s;
+        background: #fff;
+        transition: .25s;
         border-radius: 50%;
+        box-shadow: 0 1px 2px rgba(0,0,0,.15);
       }
-      .settings-switch input:checked + .settings-slider {
-        background-color: #4CAF50;
-      }
-      .settings-switch input:checked + .settings-slider:before {
-        transform: translateX(24px);
-      }
-      .settings-switch input:focus + .settings-slider {
-        box-shadow: 0 0 1px #4CAF50;
-      }
+      .settings-switch input:checked + .settings-slider { background: var(--primary); }
+      .settings-switch input:checked + .settings-slider::before { transform: translateX(22px); }
+      .settings-switch input:focus-visible + .settings-slider { box-shadow: 0 0 0 3px rgba(79,70,229,.2); }
+
       .settings-close {
         position: absolute;
-        top: 10px;
-        right: 10px;
-        font-size: 24px;
-        cursor: pointer;
-        user-select: none;
-        color: #666;
+        top: 12px;
+        right: 14px;
         width: 30px;
         height: 30px;
         display: flex;
         align-items: center;
         justify-content: center;
-        border-radius: 5px;
-        transition: background-color 0.2s ease, color 0.2s ease;
+        font-size: 20px;
+        color: var(--text-muted);
+        cursor: pointer;
+        border-radius: 6px;
+        transition: background .15s, color .15s;
+        user-select: none;
       }
-      .settings-close:hover {
-        background-color: #f0f0f0;
-        color: #000;
-      }
-      .settings-footer {
-        text-align: right;
-        margin-top: 30px;
-      }
-      .settings-footer button {
-        margin-left: 10px;
-      }
+      .settings-close:hover { background: #F3F4F6; color: var(--text); }
+
+      /* ====== 滚动条 ====== */
+      ::-webkit-scrollbar { width: 5px; }
+      ::-webkit-scrollbar-track { background: transparent; }
+      ::-webkit-scrollbar-thumb { background: #D1D5DB; border-radius: 10px; }
+      ::-webkit-scrollbar-thumb:hover { background: #9CA3AF; }
     </style>
   </head>
   <body>
-    <div class="row">
-      <label for="target">目标路径</label>
-      <span class="input-wrap">
-        <input id="target" placeholder="请选择CxExam.exe 文件路径" />
-        <span id="iconChooseExe" class="icon-in" title="选择CxExam.exe">📁</span>
-      </span>
-    </div>
-    <div class="row">
-      <label for="card">密钥</label>
-      <span class="input-wrap">
-        <input id="card" type="password" placeholder="请输入密钥，如果没有请点击购买" />
-        <span id="iconToggleCard" class="icon-in" title="显示/隐藏">😊</span>
-      </span>
-    </div>
-    <div class="row">
-      <label for="apikey">API Key</label>
-      <span class="input-wrap">
-        <input id="apikey" type="password" placeholder="请输入Deepseek API Key,具体操作请看使用说明" />
-        <span id="iconToggleApikey" class="icon-in" title="显示/隐藏">😊</span>
-      </span>
-    </div>
-    <div class="row">
-      <label>登录状态</label>
-      <div id="status"></div>
-    </div>
-    <div class="info-row">
-      <div class="notice-box">
-        <div class="notice-title">公告</div>
-        <div class="notice-content" id="noticeBox">暂无公告</div>
+    <div class="app-container">
+
+      <!-- 头部 -->
+      <div class="app-header">
+        <div class="logo">CxExam-AUTO</div>
+        <div class="subtitle">智能辅助工具</div>
       </div>
-      <div class="disclaimer">免责声明：<br/>1.仅供学习交流使用，禁止用于非法用途<br/>2.他人或组织使用此工具进行的任何违法行为与作者无关<br/>3.使用本项目造成的任何后果由使用者自行承担<br/>4.您的付费为项目测试资格，您的一切行为与作者无关<br/>5.登陆/启动则代表您同意本声明</div>
-    </div>
-    <div class="row button-group">
-      <button id="btnPurchase">购买</button>
-      <button id="btnHelp">使用说明</button>
-      <div style="position: relative; display: inline-block;">
-        <div class="update-tooltip" id="updateTooltip">密码：6666</div>
-        <button id="btnUpdate">更新</button>
+
+      <!-- 配置表单卡片 -->
+      <div class="card">
+        <div class="card-title">配置</div>
+        <div class="form-row">
+          <span class="form-label">目标路径</span>
+          <span class="form-input-wrap">
+            <input id="target" class="form-input" placeholder="请选择 CxExam.exe 文件路径" />
+            <span id="iconChooseExe" class="form-icon" title="选择文件">📁</span>
+          </span>
+        </div>
+        <div class="form-row">
+          <span class="form-label">密钥</span>
+          <span class="form-input-wrap">
+            <input id="card" class="form-input" type="password" placeholder="请输入密钥" />
+            <span id="iconToggleCard" class="form-icon" title="显示/隐藏">😊</span>
+          </span>
+        </div>
+        <div class="form-row">
+          <span class="form-label">API Key</span>
+          <span class="form-input-wrap">
+            <input id="apikey" class="form-input" type="password" placeholder="请输入 DeepSeek API Key" />
+            <span id="iconToggleApikey" class="form-icon" title="显示/隐藏">😊</span>
+          </span>
+        </div>
+        <div class="form-row">
+          <span class="form-label">状态</span>
+          <div id="status" class="status-bar">就绪</div>
+        </div>
       </div>
-      <button id="btnSettings">设置</button>
-      <button id="btnLogin">登录</button>
-      <button id="btnStart">启动</button>
-    </div>
-    <div class="version-row">
-      <div id="balanceWrap" class="balance-wrap" style="display: none;">
-        <span class="balance-label">API余额</span>
-        <span id="balanceTotal" class="balance-total">--</span>
-        <span id="balanceCurrency" class="balance-currency"></span>
+
+      <!-- 公告 & 免责 -->
+      <div class="info-cards">
+        <div class="notice-card">
+          <div class="notice-title">📢 公告</div>
+          <div class="notice-content" id="noticeBox">暂无公告</div>
+        </div>
+        <div class="disclaimer-card">
+          <strong>免责声明</strong><br>
+          1. 仅供学习交流使用，禁止用于非法用途<br>
+          2. 他人或组织使用此工具进行的任何违法行为与作者无关<br>
+          3. 使用本项目造成的任何后果由使用者自行承担<br>
+          4. 您的付费为项目测试资格，您的一切行为与作者无关<br>
+          5. 登录/启动则代表您同意本声明
+        </div>
       </div>
-      <div class="version">---CxExam-AUTO-v1.0.12---</div>
+
+      <!-- 操作按钮 -->
+      <div class="action-buttons">
+        <div class="action-row">
+          <button id="btnPurchase" class="btn btn-outline btn-util">购买</button>
+          <button id="btnHelp" class="btn btn-outline btn-util">使用说明</button>
+          <div class="update-wrapper">
+            <div class="update-tooltip" id="updateTooltip">密码：6666</div>
+            <button id="btnUpdate" class="btn btn-outline btn-util">更新</button>
+          </div>
+          <button id="btnSettings" class="btn btn-outline btn-util">设置</button>
+        </div>
+        <div class="action-row">
+          <button id="btnLogin" class="btn btn-primary btn-main">登录</button>
+          <button id="btnStart" class="btn btn-success btn-main" disabled>启动</button>
+        </div>
+      </div>
+
+      <!-- 底部信息 -->
+      <div class="footer-row">
+        <div id="balanceWrap" class="balance-badge" style="display:none;">
+          <span>💰 API余额</span>
+          <span id="balanceTotal" class="balance-value">--</span>
+          <span id="balanceCurrency"></span>
+        </div>
+        <div class="version-tag">v1.0.13</div>
+      </div>
+
     </div>
 
-    <!-- 设置界面模态框 -->
+    <!-- 设置模态框 -->
     <div class="settings-modal" id="settingsModal">
       <div class="settings-content">
         <span class="settings-close" id="settingsClose">×</span>
-        <div class="settings-item">
-          <label for="keyCrackScript">复制启用/关闭快捷键</label>
-          <input type="text" id="keyCrackScript" class="settings-key-input" placeholder="按键盘设置快捷键" readonly style="width: 200px; padding: 6px; border-radius: 5px; border: 1px solid #ccc; text-align: center;" />
+        <div class="settings-header">⚙ 设置</div>
+
+        <div class="settings-section">
+          <div class="settings-section-title">快捷键</div>
+          <div class="settings-row">
+            <span class="settings-label">复制脚本</span>
+            <input type="text" id="keyCrackScript" class="settings-key-input" placeholder="点击设置快捷键" readonly />
+          </div>
+          <div class="settings-row">
+            <span class="settings-label">AI 脚本</span>
+            <input type="text" id="keyAIScript" class="settings-key-input" placeholder="点击设置快捷键" readonly />
+          </div>
+          <div class="settings-row">
+            <span class="settings-label">切换模型</span>
+            <input type="text" id="keyModelSwitch" class="settings-key-input" placeholder="点击设置快捷键" readonly />
+          </div>
         </div>
-        <div class="settings-item">
-          <label for="keyAIScript">AI启用/关闭快捷键</label>
-          <input type="text" id="keyAIScript" class="settings-key-input" placeholder="按键盘设置快捷键" readonly style="width: 200px; padding: 6px; border-radius: 5px; border: 1px solid #ccc; text-align: center;" />
+
+        <div class="settings-section">
+          <div class="settings-section-title">AI 模型</div>
+          <div class="settings-row">
+            <span class="settings-label">默认模型</span>
+            <select id="aiModelSelect" class="settings-select">
+              <option value="deepseek-v4-flash">deepseek-v4-flash</option>
+              <option value="deepseek-v4-pro">deepseek-v4-pro</option>
+            </select>
+          </div>
+          <div class="settings-row">
+            <span class="settings-label">推理模式</span>
+            <label class="settings-switch">
+              <input type="checkbox" id="toggleThinking" checked />
+              <span class="settings-slider"></span>
+            </label>
+          </div>
+          <div class="settings-row" id="reasoningEffortItem">
+            <span class="settings-label">推理强度 <span class="settings-label-hint">(需开启推理)</span></span>
+            <select id="reasoningEffortSelect" class="settings-select">
+              <option value="low">低</option>
+              <option value="medium">中</option>
+              <option value="high" selected>高</option>
+            </select>
+          </div>
         </div>
-        <div class="settings-footer">
-          <button id="btnSettingsSave">保存</button>
+
+        <div style="text-align:right; margin-top:8px;">
+          <button id="btnSettingsSave" class="btn btn-primary">保存设置</button>
         </div>
       </div>
     </div>
@@ -248,5 +621,3 @@
     <script src="renderer.js"></script>
   </body>
   </html>
-
-

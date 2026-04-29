@@ -6,7 +6,7 @@ tokenChannel.startServer();
 // 全局变量定义
 var Sofitid = '5U3T6Z4W4E6K9B9S';
 var Card = '';
-var Local_VersionName = 'v1.0.12'; //版本更新要改
+var Local_VersionName = 'v1.0.13'; //版本更新要改
 var Local_Version = '1.0';
 var Target_address = '';
 // 设备 ID 从用户目录 .elappid 读取/生成，安装卸载后不变，不超过 32 位字母数字

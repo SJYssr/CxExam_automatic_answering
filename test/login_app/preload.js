@@ -44,6 +44,9 @@ contextBridge.exposeInMainWorld('api', {
     },
     getDeepseekBalance: async () => {
         return await ipcRenderer.invoke('get-deepseek-balance');
+    },
+    findCxExam: async () => {
+        return await ipcRenderer.invoke('find-cxexam');
     }
 });
 
