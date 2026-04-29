@@ -47,6 +47,9 @@ contextBridge.exposeInMainWorld('api', {
     },
     findCxExam: async () => {
         return await ipcRenderer.invoke('find-cxexam');
+    },
+    testApiKey: async (apiKey) => {
+        return await ipcRenderer.invoke('test-api-key', apiKey);
     }
 });
 

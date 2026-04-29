@@ -368,6 +368,58 @@ ipcMain.handle('get-deepseek-balance', async () => {
     }
 });
 
+// API Key 有效性检测：调用 DeepSeek models 接口验证
+ipcMain.handle('test-api-key', async (event, apiKey) => {
+    try {
+        const key = (apiKey && typeof apiKey === 'string') ? apiKey.trim() : '';
+        if (!key) {
+            return { ok: true, valid: false, error: '未提供 API Key' };
+        }
+        const body = await new Promise((resolve, reject) => {
+            const req = https.request(
+                'https://api.deepseek.com/models',
+                {
+                    method: 'GET',
+                    headers: {
+                        'Accept': 'application/json',
+                        'Authorization': 'Bearer ' + key
+                    }
+                },
+                (res) => {
+                    let data = '';
+                    res.on('data', (chunk) => { data += chunk; });
+                    res.on('end', () => {
+                        try {
+                            resolve({ status: res.statusCode, body: JSON.parse(data || '{}') });
+                        } catch (_) {
+                            resolve({ status: res.statusCode, body: { _raw: data } });
+                        }
+                    });
+                }
+            );
+            req.on('error', reject);
+            req.setTimeout(10000, () => {
+                req.destroy();
+                reject(new Error('请求超时'));
+            });
+            req.end();
+        });
+        if (body.status === 200 && body.body && body.body.data && Array.isArray(body.body.data)) {
+            const firstModel = body.body.data[0];
+            return { ok: true, valid: true, model: firstModel ? firstModel.id : undefined };
+        }
+        if (body.status === 401 || body.status === 403) {
+            return { ok: true, valid: false, error: 'API Key 无效或无权限' };
+        }
+        if (body.body && body.body.error && body.body.error.message) {
+            return { ok: true, valid: false, error: body.body.error.message };
+        }
+        return { ok: true, valid: false, error: 'HTTP ' + body.status };
+    } catch (e) {
+        return { ok: false, error: e && e.message ? e.message : String(e) };
+    }
+});
+
 // 启动流程：复制 DLL -> 启动 exe -> 隐藏窗口 -> 等待进程退出后清理 DLL 并退出
 ipcMain.handle('start-app', async (event, payload) => {
     try {

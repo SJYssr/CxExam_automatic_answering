@@ -26,7 +26,7 @@
         --shadow-lg: 0 10px 25px rgba(0,0,0,.1);
       }
 
-      * { box-sizing: border-box; margin: 0; padding: 0; }
+      * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
       html, body { overflow: hidden; height: 100%; }
       body {
         font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'PingFang SC', 'Microsoft YaHei', sans-serif;
@@ -226,6 +226,41 @@
         font-weight: 600;
       }
 
+      /* ====== 通用按钮悬停提示 ====== */
+      .tip-wrapper {
+        position: relative;
+        display: flex;
+        flex: 1;
+        max-width: 85px;
+      }
+      .tip-wrapper .btn { width: 100%; }
+      .btn-tip {
+        position: absolute;
+        bottom: calc(100% + 8px);
+        left: 50%;
+        transform: translateX(-50%);
+        padding: 6px 12px;
+        background: #1F2937;
+        color: #fff;
+        border-radius: var(--radius-sm);
+        font-size: 12px;
+        white-space: nowrap;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity .25s;
+        z-index: 1000;
+      }
+      .btn-tip.show { opacity: 1; }
+      .btn-tip::after {
+        content: '';
+        position: absolute;
+        top: 100%;
+        left: 50%;
+        transform: translateX(-50%);
+        border: 6px solid transparent;
+        border-top-color: #1F2937;
+      }
+
       /* ====== 公告 & 免责卡片 ====== */
       .info-cards {
         display: flex;
@@ -287,6 +322,16 @@
         font-weight: 500;
       }
       .balance-badge .balance-value { font-weight: 700; font-size: 13px; }
+      .balance-refresh {
+        cursor: pointer;
+        font-size: 15px;
+        opacity: .6;
+        transition: opacity .15s, transform .3s;
+        user-select: none;
+        margin-left: 2px;
+      }
+      .balance-refresh:hover { opacity: 1; }
+      .balance-refresh.spinning { transform: rotate(360deg); }
       .version-tag {
         font-size: 12px;
         font-weight: 600;
@@ -295,41 +340,6 @@
         padding: 3px 10px;
         border-radius: 12px;
         letter-spacing: .3px;
-      }
-
-      /* ====== 更新按钮提示 ====== */
-      .update-wrapper {
-        position: relative;
-        display: flex;
-        flex: 1;
-        max-width: 85px;
-      }
-      .update-wrapper .btn { width: 100%; }
-      .update-tooltip {
-        position: absolute;
-        bottom: calc(100% + 8px);
-        left: 50%;
-        transform: translateX(-50%);
-        padding: 6px 12px;
-        background: #1F2937;
-        color: #fff;
-        border-radius: var(--radius-sm);
-        font-size: 12px;
-        white-space: nowrap;
-        opacity: 0;
-        pointer-events: none;
-        transition: opacity .3s;
-        z-index: 1000;
-      }
-      .update-tooltip.show { opacity: 1; }
-      .update-tooltip::after {
-        content: '';
-        position: absolute;
-        top: 100%;
-        left: 50%;
-        transform: translateX(-50%);
-        border: 6px solid transparent;
-        border-top-color: #1F2937;
       }
 
       /* ====== 设置模态框 ====== */
@@ -473,6 +483,71 @@
       }
       .settings-close:hover { background: #F3F4F6; color: var(--text); }
 
+      /* ====== 设置项悬停提示 ====== */
+      .settings-tip-wrap {
+        position: relative;
+      }
+      .setting-tip {
+        position: absolute;
+        bottom: calc(100% + 6px);
+        left: 0;
+        padding: 5px 10px;
+        background: #1F2937;
+        color: #fff;
+        border-radius: var(--radius-sm);
+        font-size: 11px;
+        white-space: nowrap;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity .25s;
+        z-index: 2001;
+      }
+      .setting-tip.show { opacity: 1; }
+      .setting-tip::after {
+        content: '';
+        position: absolute;
+        top: 100%;
+        left: 24px;
+        border: 5px solid transparent;
+        border-top-color: #1F2937;
+      }
+
+      /* ====== 未保存确认对话框 ====== */
+      .confirm-dialog {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(0,0,0,.45);
+        backdrop-filter: blur(2px);
+        z-index: 3000;
+        justify-content: center;
+        align-items: center;
+      }
+      .confirm-dialog.show { display: flex; }
+      .confirm-dialog-content {
+        background: var(--card);
+        border-radius: 14px;
+        padding: 24px 28px;
+        width: 340px;
+        box-shadow: var(--shadow-lg);
+        text-align: center;
+        animation: modalIn .2s ease;
+      }
+      .confirm-dialog-message {
+        font-size: 14px;
+        color: var(--text);
+        margin-bottom: 20px;
+        line-height: 1.5;
+      }
+      .confirm-dialog-buttons {
+        display: flex;
+        gap: 12px;
+        justify-content: center;
+      }
+      .confirm-dialog-buttons .btn {
+        min-width: 80px;
+      }
+
       /* ====== 滚动条 ====== */
       ::-webkit-scrollbar { width: 5px; }
       ::-webkit-scrollbar-track { background: transparent; }
@@ -516,6 +591,10 @@
         <div class="form-row">
           <span class="form-label">状态</span>
           <div id="status" class="status-bar">就绪</div>
+          <span class="tip-wrapper" style="max-width:none; flex:none; display:inline-flex; margin-left:auto;">
+            <div class="btn-tip">测试 API Key 是否有效</div>
+            <button id="btnTestApi" class="btn btn-outline" style="padding:6px 12px; font-size:12px;">检测</button>
+          </span>
         </div>
       </div>
 
@@ -538,17 +617,30 @@
       <!-- 操作按钮 -->
       <div class="action-buttons">
         <div class="action-row">
-          <button id="btnPurchase" class="btn btn-outline btn-util">购买</button>
-          <button id="btnHelp" class="btn btn-outline btn-util">使用说明</button>
-          <div class="update-wrapper">
-            <div class="update-tooltip" id="updateTooltip">密码：6666</div>
+          <div class="tip-wrapper">
+            <div class="btn-tip" id="tipPurchase">获取购买链接</div>
+            <button id="btnPurchase" class="btn btn-outline btn-util">购买</button>
+          </div>
+          <div class="tip-wrapper">
+            <div class="btn-tip" id="tipHelp">查看使用教程</div>
+            <button id="btnHelp" class="btn btn-outline btn-util">使用说明</button>
+          </div>
+          <div class="tip-wrapper">
+            <div class="btn-tip" id="tipUpdate">密码：6666</div>
             <button id="btnUpdate" class="btn btn-outline btn-util">更新</button>
           </div>
-          <button id="btnSettings" class="btn btn-outline btn-util">设置</button>
+          <div class="tip-wrapper">
+            <div class="btn-tip" id="tipSettings">配置快捷键与AI模型</div>
+            <button id="btnSettings" class="btn btn-outline btn-util">设置</button>
+          </div>
         </div>
         <div class="action-row">
-          <button id="btnLogin" class="btn btn-primary btn-main">登录</button>
-          <button id="btnStart" class="btn btn-success btn-main" disabled>启动</button>
+          <div class="tip-wrapper" style="max-width:200px;">
+            <button id="btnLogin" class="btn btn-primary btn-main">登录</button>
+          </div>
+          <div class="tip-wrapper" style="max-width:200px;">
+            <button id="btnStart" class="btn btn-success btn-main" disabled>启动</button>
+          </div>
         </div>
       </div>
 
@@ -558,6 +650,10 @@
           <span>💰 API余额</span>
           <span id="balanceTotal" class="balance-value">--</span>
           <span id="balanceCurrency"></span>
+          <span class="tip-wrapper" style="max-width:none; flex:none; display:inline-flex;">
+            <div class="btn-tip">手动刷新余额</div>
+            <span id="balanceRefresh" class="balance-refresh">↻</span>
+          </span>
         </div>
         <div class="version-tag">v1.0.13</div>
       </div>
@@ -573,15 +669,24 @@
         <div class="settings-section">
           <div class="settings-section-title">快捷键</div>
           <div class="settings-row">
-            <span class="settings-label">复制脚本</span>
+            <span class="settings-tip-wrap">
+              <div class="setting-tip" id="tipCrackKey">设置复制功能开启/关闭触发按键</div>
+              <span class="settings-label">复制功能</span>
+            </span>
             <input type="text" id="keyCrackScript" class="settings-key-input" placeholder="点击设置快捷键" readonly />
           </div>
           <div class="settings-row">
-            <span class="settings-label">AI 脚本</span>
+            <span class="settings-tip-wrap">
+              <div class="setting-tip" id="tipAiKey">设置 AI 功能开启/关闭触发按键</div>
+              <span class="settings-label">AI功能</span>
+            </span>
             <input type="text" id="keyAIScript" class="settings-key-input" placeholder="点击设置快捷键" readonly />
           </div>
           <div class="settings-row">
-            <span class="settings-label">切换模型</span>
+            <span class="settings-tip-wrap">
+              <div class="setting-tip" id="tipModelKey">设置模型切换触发按键</div>
+              <span class="settings-label">切换模型</span>
+            </span>
             <input type="text" id="keyModelSwitch" class="settings-key-input" placeholder="点击设置快捷键" readonly />
           </div>
         </div>
@@ -589,21 +694,30 @@
         <div class="settings-section">
           <div class="settings-section-title">AI 模型</div>
           <div class="settings-row">
-            <span class="settings-label">默认模型</span>
+            <span class="settings-tip-wrap">
+              <div class="setting-tip" id="tipAiModel">选择回答使用的默认模型</div>
+              <span class="settings-label">默认模型</span>
+            </span>
             <select id="aiModelSelect" class="settings-select">
-              <option value="deepseek-v4-flash">deepseek-v4-flash</option>
-              <option value="deepseek-v4-pro">deepseek-v4-pro</option>
-            </select>
+                <option value="deepseek-v4-flash">deepseek-v4-flash</option>
+                <option value="deepseek-v4-pro">deepseek-v4-pro</option>
+              </select>
           </div>
           <div class="settings-row">
-            <span class="settings-label">推理模式</span>
+            <span class="settings-tip-wrap">
+              <div class="setting-tip" id="tipThinking">开启后 AI 会进行深度推理作答</div>
+              <span class="settings-label">推理模式<span class="settings-label-hint">(开启后token消耗增加)</span></span>
+            </span>
             <label class="settings-switch">
               <input type="checkbox" id="toggleThinking" checked />
               <span class="settings-slider"></span>
             </label>
           </div>
           <div class="settings-row" id="reasoningEffortItem">
-            <span class="settings-label">推理强度 <span class="settings-label-hint">(需开启推理)</span></span>
+            <span class="settings-tip-wrap">
+              <div class="setting-tip" id="tipEffort">强度越高回答质量越好但耗时越久</div>
+              <span class="settings-label">推理强度 <span class="settings-label-hint">(需开启推理)</span></span>
+            </span>
             <select id="reasoningEffortSelect" class="settings-select">
               <option value="low">低</option>
               <option value="medium">中</option>
@@ -612,12 +726,24 @@
           </div>
         </div>
 
-        <div style="text-align:right; margin-top:8px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px;">
+          <button id="btnSettingsReset" class="btn btn-outline" style="font-size:12px;">恢复默认</button>
           <button id="btnSettingsSave" class="btn btn-primary">保存设置</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 未保存更改确认对话框 -->
+    <div class="confirm-dialog" id="confirmDialog">
+      <div class="confirm-dialog-content">
+        <div class="confirm-dialog-message" id="confirmDialogMsg"></div>
+        <div class="confirm-dialog-buttons">
+          <button id="confirmDialogCancel" class="btn btn-outline">取消</button>
+          <button id="confirmDialogOk" class="btn btn-primary">确定</button>
         </div>
       </div>
     </div>
 
     <script src="renderer.js"></script>
   </body>
-  </html>
+</html>

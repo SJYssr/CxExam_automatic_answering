@@ -10,7 +10,6 @@ const iconToggleApikey = $('iconToggleApikey');
 const btnPurchase = $('btnPurchase');
 const btnHelp = $('btnHelp');
 const btnUpdate = $('btnUpdate');
-const updateTooltip = $('updateTooltip');
 const btnSettings = $('btnSettings');
 const btnLogin = $('btnLogin');
 const btnStart = $('btnStart');
@@ -28,9 +27,83 @@ const reasoningEffortItem = $('reasoningEffortItem');
 const balanceWrap = $('balanceWrap');
 const balanceTotal = $('balanceTotal');
 const balanceCurrency = $('balanceCurrency');
+const balanceRefresh = $('balanceRefresh');
+const btnTestApi = $('btnTestApi');
+const btnSettingsReset = $('btnSettingsReset');
+const confirmDialog = $('confirmDialog');
+const confirmDialogMsg = $('confirmDialogMsg');
+const confirmDialogCancel = $('confirmDialogCancel');
+const confirmDialogOk = $('confirmDialogOk');
 let loggedIn = false;
 let balanceTimer = null;
-let updateButtonEnabled = false;
+
+// ====== 通用：按钮悬停提示 ======
+function setupBtnTip(wrapperEl) {
+    if (!wrapperEl) return;
+    const tip = wrapperEl.querySelector('.btn-tip');
+    if (!tip) return;
+    wrapperEl.addEventListener('mouseenter', function() {
+        tip.classList.add('show');
+    });
+    wrapperEl.addEventListener('mouseleave', function() {
+        tip.classList.remove('show');
+    });
+}
+
+function setupAllBtnTips() {
+    document.querySelectorAll('.tip-wrapper').forEach(function(el) { setupBtnTip(el); });
+}
+
+// ====== 通用：设置项悬停提示 ======
+function setupSettingTip(wrapEl) {
+    if (!wrapEl) return;
+    const tip = wrapEl.querySelector('.setting-tip');
+    if (!tip) return;
+    wrapEl.addEventListener('mouseenter', function() {
+        tip.classList.add('show');
+    });
+    wrapEl.addEventListener('mouseleave', function() {
+        tip.classList.remove('show');
+    });
+}
+
+function setupAllSettingTips() {
+    document.querySelectorAll('.settings-tip-wrap').forEach(function(el) { setupSettingTip(el); });
+}
+
+// ====== 自定义确认对话框 ======
+let confirmCallback = null;
+
+function showConfirmDialog(message, onOk) {
+    if (!confirmDialog || !confirmDialogMsg) return;
+    confirmDialogMsg.textContent = message;
+    confirmCallback = onOk;
+    confirmDialog.classList.add('show');
+}
+
+function hideConfirmDialog() {
+    if (confirmDialog) confirmDialog.classList.remove('show');
+    confirmCallback = null;
+}
+
+if (confirmDialogCancel) {
+    confirmDialogCancel.addEventListener('click', hideConfirmDialog);
+}
+if (confirmDialogOk) {
+    confirmDialogOk.addEventListener('click', function() {
+        var cb = confirmCallback;
+        hideConfirmDialog();
+        if (typeof cb === 'function') {
+            cb();
+        }
+    });
+}
+// 点击背景关闭
+if (confirmDialog) {
+    confirmDialog.addEventListener('click', function(e) {
+        if (e.target === confirmDialog) hideConfirmDialog();
+    });
+}
 
 function isNonEmpty(v) {
     return v != null && String(v).trim().length > 0;
@@ -39,7 +112,6 @@ function isNonEmpty(v) {
 function updateButtons() {
     if (btnLogin) btnLogin.disabled = !isNonEmpty(cardEl.value);
     if (btnStart) btnStart.disabled = !(isNonEmpty(targetEl.value) && isNonEmpty(apikeyEl.value) && loggedIn);
-    // 目标路径未填写时，不允许编辑/设置 API Key
     apikeyEl.disabled = !isNonEmpty(targetEl.value);
 }
 
@@ -47,13 +119,23 @@ function logStatus(obj) {
     statusEl.textContent = typeof obj === 'string' ? obj : JSON.stringify(obj, null, 2);
 }
 
+// 公告：支持将 URL 转为可点击链接
 function setNoticeText(text) {
     if (noticeBox) {
-        noticeBox.textContent = text;
+        const escaped = text
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;');
+        const linked = escaped.replace(
+            /(https?:\/\/[^\s<>"{}|\\^`\[\]]+)/g,
+            '<a href="$1" style="color:#4F46E5;text-decoration:underline;" target="_blank" rel="noopener">$1</a>'
+        );
+        noticeBox.innerHTML = linked;
     }
 }
 
-// DeepSeek 余额：仅当 config 中有 apiKey 时显示并定时刷新；返回 { totalBalance, currency } 或 null/错误信息
+// DeepSeek 余额
 function parseBalance(res) {
     if (!res || !res.ok) return { error: res && res.error ? res.error : '获取失败' };
     if (res.noKey) return null;
@@ -115,6 +197,46 @@ async function updateBalanceVisibility() {
     }
 }
 
+// 余额手动刷新
+if (balanceRefresh) {
+    balanceRefresh.addEventListener('click', async function() {
+        if (balanceRefresh.classList.contains('spinning')) return;
+        balanceRefresh.classList.add('spinning');
+        try {
+            await refreshBalance();
+        } finally {
+            setTimeout(function() { balanceRefresh.classList.remove('spinning'); }, 300);
+        }
+    });
+}
+
+// ====== API Key 检测 ======
+if (btnTestApi) {
+    btnTestApi.addEventListener('click', async function() {
+        const key = (apikeyEl.value || '').trim();
+        if (!key) { logStatus('请先填写 API Key'); return; }
+        btnTestApi.disabled = true;
+        btnTestApi.textContent = '检测中...';
+        logStatus('正在检测 API Key...');
+        try {
+            const res = await window.api.testApiKey(key);
+            if (!res || !res.ok) {
+                const err = (res && res.error) ? res.error : '检测失败';
+                logStatus('API Key 检测失败：' + err);
+            } else if (res.valid) {
+                logStatus('API Key 有效' + (res.model ? '，模型：' + res.model : ''));
+            } else {
+                logStatus('API Key 无效：' + (res.error || '未知原因'));
+            }
+        } catch (e) {
+            logStatus('API Key 检测异常: ' + (e && e.message ? e.message : String(e)));
+        } finally {
+            btnTestApi.disabled = false;
+            btnTestApi.textContent = '检测';
+        }
+    });
+}
+
 async function loadNotice() {
     if (!noticeBox || !window.api || typeof window.api.getNotice !== 'function') return;
     setNoticeText('公告加载中...');
@@ -125,9 +247,9 @@ async function loadNotice() {
             if (data.success && data.notice) {
                 setNoticeText(data.notice);
             } else {
-                const code = data.errorCode ? `（${data.errorCode}）` : '';
+                const code = data.errorCode ? '（' + data.errorCode + '）' : '';
                 const msg = data.errorMessage || data.message || '公告获取失败';
-                setNoticeText(`${msg}${code}`);
+                setNoticeText(msg + code);
             }
         } else {
             const err = (res && res.error) ? res.error : '公告获取失败';
@@ -155,20 +277,20 @@ async function runLoginFlow() {
         const r2 = await window.api.startLoginFlow();
         if (!r2 || !r2.ok) {
             const err = (r2 && r2.error) ? r2.error : '登录流程调用失败';
-            logStatus(`登陆失败：${err}`);
+            logStatus('登陆失败：' + err);
             loggedIn = false;
             updateButtons();
             return;
         }
         const data = r2.data || {};
         if (data.success && data.step === 'done') {
-            const et = (data.expireTime && String(data.expireTime).trim().length > 0) ? `（到期时间：${data.expireTime}）` : '';
-            logStatus(`登陆成功${et}`);
+            const et = (data.expireTime && String(data.expireTime).trim().length > 0) ? '（到期时间：' + data.expireTime + '）' : '';
+            logStatus('登陆成功' + et);
             loggedIn = true;
         } else {
-            const code = data && data.detail && data.detail.errorCode ? `（错误码：${data.detail.errorCode}）` : '';
+            const code = data && data.detail && data.detail.errorCode ? '（错误码：' + data.detail.errorCode + '）' : '';
             const reason = (data && data.message) ? data.message : (data && data.detail && data.detail.errorMessage ? data.detail.errorMessage : '未知错误');
-            logStatus(`登陆失败：${reason}${code}`);
+            logStatus('登陆失败：' + reason + code);
             loggedIn = false;
         }
         updateButtons();
@@ -183,98 +305,97 @@ function debounce(fn, ms) {
     let t;
     return function() {
         clearTimeout(t);
-        t = setTimeout(() => fn(), ms);
+        t = setTimeout(function() { fn(); }, ms);
     };
 }
 
-// 购买按钮：打开购买链接
+// ====== 按钮事件 ======
+
+// 购买按钮
 if (btnPurchase) {
-    btnPurchase.addEventListener('click', async () => {
+    btnPurchase.addEventListener('click', async function() {
         try {
             const res = await window.api.getPurchaseLink();
-            if (!res || !res.ok) {
-                logStatus('获取购买链接失败');
-                return;
-            }
+            if (!res || !res.ok) { logStatus('获取购买链接失败'); return; }
             const data = res.data || {};
             if (!data.success || !data.url) {
-                const code = data.errorCode ? `（错误码：${data.errorCode}）` : '';
+                const code = data.errorCode ? '（错误码：' + data.errorCode + '）' : '';
                 const msg = data.errorMessage || '获取购买链接失败';
-                logStatus(`${msg}${code}`);
+                logStatus(msg + code);
                 return;
             }
             const openRes = await window.api.openExternalUrl(data.url);
-            if (!openRes || !openRes.ok) {
-                logStatus('打开购买链接失败');
-            }
+            if (!openRes || !openRes.ok) { logStatus('打开购买链接失败'); }
         } catch (e) {
             logStatus('获取/打开购买链接异常: ' + (e && e.message ? e.message : String(e)));
         }
     });
 }
 
-// 使用说明按钮：打开使用说明链接
+// 使用说明按钮
 if (btnHelp) {
-    btnHelp.addEventListener('click', async () => {
+    btnHelp.addEventListener('click', async function() {
         try {
             const res = await window.api.getHelpLink();
-            if (!res || !res.ok) {
-                logStatus('获取使用说明链接失败');
-                return;
-            }
+            if (!res || !res.ok) { logStatus('获取使用说明链接失败'); return; }
             const data = res.data || {};
             if (!data.success || !data.url) {
-                const code = data.errorCode ? `（错误码：${data.errorCode}）` : '';
+                const code = data.errorCode ? '（错误码：' + data.errorCode + '）' : '';
                 const msg = data.errorMessage || '获取使用说明链接失败';
-                logStatus(`${msg}${code}`);
+                logStatus(msg + code);
                 return;
             }
             const openRes = await window.api.openExternalUrl(data.url);
-            if (!openRes || !openRes.ok) {
-                logStatus('打开使用说明链接失败');
-            }
+            if (!openRes || !openRes.ok) { logStatus('打开使用说明链接失败'); }
         } catch (e) {
             logStatus('获取/打开使用说明链接异常: ' + (e && e.message ? e.message : String(e)));
         }
     });
 }
 
-// 更新按钮：打开更新链接（需等待提示框完全显示后才能点击）
-if (btnUpdate && updateTooltip) {
-    // 鼠标移入：显示提示框，禁用按钮，等待动画完成后启用
-    btnUpdate.addEventListener('mouseenter', () => {
-        updateButtonEnabled = false;
-        updateTooltip.classList.add('show');
-        // 等待动画完成（0.5s）后启用按钮
-        setTimeout(() => {
-            updateButtonEnabled = true;
-        }, 500);
-    });
-    
-    // 鼠标移出：隐藏提示框，禁用按钮
-    btnUpdate.addEventListener('mouseleave', () => {
-        updateButtonEnabled = false;
-        updateTooltip.classList.remove('show');
-    });
-    
-    // 点击事件：只有在提示框完全显示后才能点击
-    btnUpdate.addEventListener('click', async (e) => {
-        if (!updateButtonEnabled) {
-            e.preventDefault();
-            return;
-        }
+// 更新按钮：悬停提示显示后才允许点击
+let updateReady = false;
+if (btnUpdate) {
+    const updateWrapper = btnUpdate.closest('.tip-wrapper');
+    if (updateWrapper) {
+        updateWrapper.addEventListener('mouseenter', function() {
+            setTimeout(function() { updateReady = true; }, 500);
+        });
+        updateWrapper.addEventListener('mouseleave', function() {
+            updateReady = false;
+        });
+    }
+    btnUpdate.addEventListener('click', async function(e) {
+        if (!updateReady) { e.preventDefault(); return; }
         try {
             const res = await window.api.openExternalUrl('https://wwfb.lanzouw.com/b00wn52fhg');
-            if (!res || !res.ok) {
-                logStatus('打开更新链接失败');
-            }
+            if (!res || !res.ok) { logStatus('打开更新链接失败'); }
         } catch (err) {
             logStatus('打开更新链接异常: ' + (err && err.message ? err.message : String(err)));
         }
     });
 }
 
-// 键盘码 -> 显示名称（全键盘，用于从 config.json 的 keyCode 还原显示）
+// 登录按钮
+if (btnLogin) {
+    btnLogin.addEventListener('click', function() { runLoginFlow(); });
+}
+
+// 启动按钮
+if (btnStart) {
+    btnStart.addEventListener('click', async function() {
+        try {
+            const exePath = targetEl.value || '';
+            if (!isNonEmpty(exePath)) { logStatus('请先选择目标 .exe'); return; }
+            const res = await window.api.startApp(exePath);
+            if (!res || !res.ok) { logStatus(res && res.error ? res.error : '启动失败'); return; }
+        } catch (e) {
+            logStatus(e && e.message ? e.message : String(e));
+        }
+    });
+}
+
+// ====== 键盘码映射 ======
 const keyCodeToName = {
     8: 'Backspace', 9: 'Tab', 13: 'Enter', 16: 'Shift', 17: 'Control', 18: 'Alt', 19: 'Pause',
     20: 'CapsLock', 27: 'Esc', 32: 'Space', 33: 'PageUp', 34: 'PageDown', 35: 'End', 36: 'Home',
@@ -302,71 +423,54 @@ function formatShortcutFromKeyCode(keyCode, ctrl, alt, shift) {
     return parts.join('+');
 }
 
-// 快捷键输入框的键盘事件处理
 function setupKeyInput(inputEl, defaultKey) {
     if (!inputEl) return;
-    
+
     let isCapturing = false;
-    let pressedModifiers = {
-        ctrl: false,
-        alt: false,
-        shift: false
-    };
-    
-    inputEl.addEventListener('click', () => {
+    let pressedModifiers = { ctrl: false, alt: false, shift: false };
+
+    inputEl.addEventListener('click', function() {
         isCapturing = true;
         pressedModifiers = { ctrl: false, alt: false, shift: false };
         inputEl.value = '按任意键...';
         inputEl.style.backgroundColor = '#fff3cd';
-        inputEl.focus(); // 确保输入框获得焦点
+        inputEl.focus();
     });
-    
-    inputEl.addEventListener('keydown', (e) => {
+
+    inputEl.addEventListener('keydown', function(e) {
         if (!isCapturing) return;
-        
-        // 检查是否是修饰键
-        const isModifierKey = e.key === 'Control' || e.key === 'Alt' || e.key === 'Shift' || 
+
+        const isModifierKey = e.key === 'Control' || e.key === 'Alt' || e.key === 'Shift' ||
                               e.key === 'Meta' || e.key === 'OSLeft' || e.key === 'OSRight';
-        
-        // 更新修饰键状态
+
         if (e.key === 'Control' || e.ctrlKey) pressedModifiers.ctrl = true;
         if (e.key === 'Alt' || e.altKey) pressedModifiers.alt = true;
         if (e.key === 'Shift' || e.shiftKey) pressedModifiers.shift = true;
-        
-        // 如果只是按下修饰键，不结束捕获，只更新显示
+
         if (isModifierKey) {
             e.preventDefault();
             e.stopPropagation();
-            
-            // 显示当前按下的修饰键
             const parts = [];
             if (pressedModifiers.ctrl) parts.push('Ctrl');
             if (pressedModifiers.alt) parts.push('Alt');
             if (pressedModifiers.shift) parts.push('Shift');
-            if (parts.length > 0) {
-                inputEl.value = parts.join('+') + '+...';
-            } else {
-                inputEl.value = '按任意键...';
-            }
+            inputEl.value = parts.length > 0 ? parts.join('+') + '+...' : '按任意键...';
             return;
         }
-        
-        // 按下非修饰键，结束捕获
+
         e.preventDefault();
         e.stopPropagation();
-        
-        // 构建快捷键字符串
+
         const parts = [];
         if (pressedModifiers.ctrl || e.ctrlKey) parts.push('Ctrl');
         if (pressedModifiers.alt || e.altKey) parts.push('Alt');
         if (pressedModifiers.shift || e.shiftKey) parts.push('Shift');
-        
-        // 获取按键名称：优先用 keyCode 对应的物理键名，这样 Shift+1 显示为 1 而不是 !
+
         let keyName = '';
         if (keyCodeToName[e.keyCode]) {
             keyName = keyCodeToName[e.keyCode];
         } else if (e.key.length === 1 && !isModifierKey) {
-            keyName = e.shiftKey ? e.key.toUpperCase() : e.key.toUpperCase();
+            keyName = e.key.toUpperCase();
         } else {
             const keyMap = {
                 'F1': 'F1', 'F2': 'F2', 'F3': 'F3', 'F4': 'F4', 'F5': 'F5',
@@ -381,33 +485,29 @@ function setupKeyInput(inputEl, defaultKey) {
             };
             keyName = keyMap[e.key] || e.key;
         }
-        
+
         if (keyName) {
             parts.push(keyName);
             inputEl.value = parts.join('+');
-            
-            // 保存键码和修饰键状态
             inputEl.dataset.keyCode = e.keyCode.toString();
             inputEl.dataset.ctrl = (pressedModifiers.ctrl || e.ctrlKey) ? '1' : '0';
             inputEl.dataset.alt = (pressedModifiers.alt || e.altKey) ? '1' : '0';
             inputEl.dataset.shift = (pressedModifiers.shift || e.shiftKey) ? '1' : '0';
-            
             inputEl.style.backgroundColor = '#fff';
             isCapturing = false;
             pressedModifiers = { ctrl: false, alt: false, shift: false };
+            markSettingsDirty();
         }
     });
-    
-    inputEl.addEventListener('keyup', (e) => {
+
+    inputEl.addEventListener('keyup', function(e) {
         if (!isCapturing) return;
-        
-        // 更新修饰键状态（释放时）
         if (e.key === 'Control') pressedModifiers.ctrl = false;
         if (e.key === 'Alt') pressedModifiers.alt = false;
         if (e.key === 'Shift') pressedModifiers.shift = false;
     });
-    
-    inputEl.addEventListener('blur', () => {
+
+    inputEl.addEventListener('blur', function() {
         if (isCapturing) {
             inputEl.value = inputEl.dataset.originalValue || defaultKey || '';
             inputEl.style.backgroundColor = '#fff';
@@ -417,223 +517,229 @@ function setupKeyInput(inputEl, defaultKey) {
     });
 }
 
-// 设置按钮：显示设置界面
+// ====== 设置面板 ======
+let settingsDirty = false;
+let settingsLoading = false;
+
+function markSettingsDirty() {
+    if (!settingsLoading) { settingsDirty = true; }
+}
+
+function clearSettingsDirty() {
+    settingsDirty = false;
+}
+
+// 打开设置（首次初始化事件监听，每次打开时刷新字段）
+let settingsInitialized = false;
+
+function initSettingsOnce() {
+    if (settingsInitialized) return;
+    settingsInitialized = true;
+    setupKeyInput(keyCrackScript, 'F1');
+    setupKeyInput(keyAIScript, 'F2');
+    setupKeyInput(keyModelSwitch, 'F3');
+    setupAllSettingTips();
+    if (toggleThinking && reasoningEffortSelect) {
+        toggleThinking.onchange = function() {
+            reasoningEffortSelect.disabled = !toggleThinking.checked;
+            markSettingsDirty();
+        };
+    }
+    if (aiModelSelect) aiModelSelect.addEventListener('change', markSettingsDirty);
+    if (toggleThinking) toggleThinking.addEventListener('change', markSettingsDirty);
+    if (reasoningEffortSelect) reasoningEffortSelect.addEventListener('change', markSettingsDirty);
+}
+
 if (btnSettings) {
-    btnSettings.addEventListener('click', async () => {
-        if (settingsModal) {
-            // 加载当前设置
-            try {
-                const res = await window.api.getConfigs();
-                if (res && res.ok && res.config) {
-                    const config = res.config;
-                    // 从 config 的键盘码(keyCode)还原显示
-                    if (keyCrackScript) {
-                        const kc = config.crackScriptKeyCode !== undefined ? config.crackScriptKeyCode : 112;
-                        const c = !!(config.crackScriptCtrl || false);
-                        const a = !!(config.crackScriptAlt || false);
-                        const s = !!(config.crackScriptShift || false);
-                        const display = formatShortcutFromKeyCode(kc, c, a, s);
-                        keyCrackScript.value = display;
-                        keyCrackScript.dataset.originalValue = display;
-                        keyCrackScript.dataset.keyCode = String(kc);
-                        keyCrackScript.dataset.ctrl = c ? '1' : '0';
-                        keyCrackScript.dataset.alt = a ? '1' : '0';
-                        keyCrackScript.dataset.shift = s ? '1' : '0';
-                    }
-                    if (keyAIScript) {
-                        const kc = config.aiScriptKeyCode !== undefined ? config.aiScriptKeyCode : 113;
-                        const c = !!(config.aiScriptCtrl || false);
-                        const a = !!(config.aiScriptAlt || false);
-                        const s = !!(config.aiScriptShift || false);
-                        const display = formatShortcutFromKeyCode(kc, c, a, s);
-                        keyAIScript.value = display;
-                        keyAIScript.dataset.originalValue = display;
-                        keyAIScript.dataset.keyCode = String(kc);
-                        keyAIScript.dataset.ctrl = c ? '1' : '0';
-                        keyAIScript.dataset.alt = a ? '1' : '0';
-                        keyAIScript.dataset.shift = s ? '1' : '0';
-                    }
-                    if (aiModelSelect) {
-                        aiModelSelect.value = config.aiModel || 'deepseek-v4-flash';
-                    }
-                    if (toggleThinking) {
-                        toggleThinking.checked = config.enableThinking !== false;
-                    }
-                    if (reasoningEffortSelect) {
-                        reasoningEffortSelect.value = config.reasoningEffort || 'high';
-                        reasoningEffortSelect.disabled = !toggleThinking.checked;
-                    }
-                    if (keyModelSwitch) {
-                        const kc = config.modelSwitchKeyCode !== undefined ? config.modelSwitchKeyCode : 114;
-                        const c = !!(config.modelSwitchCtrl || false);
-                        const a = !!(config.modelSwitchAlt || false);
-                        const s = !!(config.modelSwitchShift || false);
-                        const display = formatShortcutFromKeyCode(kc, c, a, s);
-                        keyModelSwitch.value = display;
-                        keyModelSwitch.dataset.originalValue = display;
-                        keyModelSwitch.dataset.keyCode = String(kc);
-                        keyModelSwitch.dataset.ctrl = c ? '1' : '0';
-                        keyModelSwitch.dataset.alt = a ? '1' : '0';
-                        keyModelSwitch.dataset.shift = s ? '1' : '0';
-                    }
-                }
-            } catch (e) {
-                // 如果加载失败，使用默认值
-                if (keyCrackScript) {
-                    keyCrackScript.value = 'F1';
-                    keyCrackScript.dataset.originalValue = 'F1';
-                    keyCrackScript.dataset.keyCode = '112';
-                }
-                if (keyAIScript) {
-                    keyAIScript.value = 'F2';
-                    keyAIScript.dataset.originalValue = 'F2';
-                    keyAIScript.dataset.keyCode = '113';
-                }
-                if (aiModelSelect) {
-                    aiModelSelect.value = 'deepseek-v4-flash';
-                }
-                if (toggleThinking) {
-                    toggleThinking.checked = true;
-                }
-                if (reasoningEffortSelect) {
-                    reasoningEffortSelect.value = 'high';
-                    reasoningEffortSelect.disabled = false;
-                }
-                if (keyModelSwitch) {
-                    keyModelSwitch.value = 'F3';
-                    keyModelSwitch.dataset.originalValue = 'F3';
-                    keyModelSwitch.dataset.keyCode = '114';
-                }
-            }
-            
-            // 设置快捷键输入框
-            setupKeyInput(keyCrackScript, 'F1');
-            setupKeyInput(keyAIScript, 'F2');
-            setupKeyInput(keyModelSwitch, 'F3');
-
-            // 推理模式开关联动：关闭时禁用推理强度下拉框
-            if (toggleThinking && reasoningEffortSelect) {
-                toggleThinking.onchange = function () {
-                    reasoningEffortSelect.disabled = !toggleThinking.checked;
-                };
-            }
-
-            settingsModal.classList.add('show');
-        }
+    btnSettings.addEventListener('click', async function() {
+        clearSettingsDirty();
+        settingsLoading = true;
+        initSettingsOnce();
+        await reloadSettingsFields();
+        settingsLoading = false;
+        settingsModal.classList.add('show');
     });
 }
 
-// 设置界面关闭按钮（右上角 X）
-if (settingsClose) {
-    settingsClose.addEventListener('click', () => {
-        if (settingsModal) {
-            settingsModal.classList.remove('show');
+// 从 config 重新加载设置字段（恢复为已保存状态）
+async function reloadSettingsFields() {
+    try {
+        const res = await window.api.getConfigs();
+        if (res && res.ok && res.config) {
+            const config = res.config;
+            if (keyCrackScript) {
+                const kc = config.crackScriptKeyCode !== undefined ? config.crackScriptKeyCode : 112;
+                const c = !!(config.crackScriptCtrl || false);
+                const a = !!(config.crackScriptAlt || false);
+                const s = !!(config.crackScriptShift || false);
+                keyCrackScript.value = formatShortcutFromKeyCode(kc, c, a, s);
+                keyCrackScript.dataset.originalValue = keyCrackScript.value;
+                keyCrackScript.dataset.keyCode = String(kc);
+                keyCrackScript.dataset.ctrl = c ? '1' : '0';
+                keyCrackScript.dataset.alt = a ? '1' : '0';
+                keyCrackScript.dataset.shift = s ? '1' : '0';
+            }
+            if (keyAIScript) {
+                const kc = config.aiScriptKeyCode !== undefined ? config.aiScriptKeyCode : 113;
+                const c = !!(config.aiScriptCtrl || false);
+                const a = !!(config.aiScriptAlt || false);
+                const s = !!(config.aiScriptShift || false);
+                keyAIScript.value = formatShortcutFromKeyCode(kc, c, a, s);
+                keyAIScript.dataset.originalValue = keyAIScript.value;
+                keyAIScript.dataset.keyCode = String(kc);
+                keyAIScript.dataset.ctrl = c ? '1' : '0';
+                keyAIScript.dataset.alt = a ? '1' : '0';
+                keyAIScript.dataset.shift = s ? '1' : '0';
+            }
+            if (keyModelSwitch) {
+                const kc = config.modelSwitchKeyCode !== undefined ? config.modelSwitchKeyCode : 114;
+                const c = !!(config.modelSwitchCtrl || false);
+                const a = !!(config.modelSwitchAlt || false);
+                const s = !!(config.modelSwitchShift || false);
+                keyModelSwitch.value = formatShortcutFromKeyCode(kc, c, a, s);
+                keyModelSwitch.dataset.originalValue = keyModelSwitch.value;
+                keyModelSwitch.dataset.keyCode = String(kc);
+                keyModelSwitch.dataset.ctrl = c ? '1' : '0';
+                keyModelSwitch.dataset.alt = a ? '1' : '0';
+                keyModelSwitch.dataset.shift = s ? '1' : '0';
+            }
+            if (aiModelSelect) aiModelSelect.value = config.aiModel || 'deepseek-v4-flash';
+            if (toggleThinking) {
+                toggleThinking.checked = config.enableThinking !== false;
+                if (reasoningEffortSelect) reasoningEffortSelect.disabled = !toggleThinking.checked;
+            }
+            if (reasoningEffortSelect) reasoningEffortSelect.value = config.reasoningEffort || 'high';
         }
-    });
+    } catch (_) {}
 }
 
-// 设置界面保存按钮
-if (btnSettingsSave) {
-    btnSettingsSave.addEventListener('click', async () => {
-        try {
-            // 获取快捷键设置
-            const crackKeyCode = keyCrackScript ? parseInt(keyCrackScript.dataset.keyCode || '112') : 112;
-            const crackCtrl = keyCrackScript ? (keyCrackScript.dataset.ctrl === '1') : false;
-            const crackAlt = keyCrackScript ? (keyCrackScript.dataset.alt === '1') : false;
-            const crackShift = keyCrackScript ? (keyCrackScript.dataset.shift === '1') : false;
-
-            const aiKeyCode = keyAIScript ? parseInt(keyAIScript.dataset.keyCode || '113') : 113;
-            const aiCtrl = keyAIScript ? (keyAIScript.dataset.ctrl === '1') : false;
-            const aiAlt = keyAIScript ? (keyAIScript.dataset.alt === '1') : false;
-            const aiShift = keyAIScript ? (keyAIScript.dataset.shift === '1') : false;
-
-            const modelSwitchKeyCode = keyModelSwitch ? parseInt(keyModelSwitch.dataset.keyCode || '114') : 114;
-            const modelSwitchCtrl = keyModelSwitch ? (keyModelSwitch.dataset.ctrl === '1') : false;
-            const modelSwitchAlt = keyModelSwitch ? (keyModelSwitch.dataset.alt === '1') : false;
-            const modelSwitchShift = keyModelSwitch ? (keyModelSwitch.dataset.shift === '1') : false;
-
-            // 保存到配置文件（仅保存键盘码 keyCode 及修饰键，不保存按键名称）
-            const res = await window.api.setConfigs({
-                config: {
-                    Target_address: targetEl.value || '',
-                    Card: cardEl.value || '',
-                    apiKey: apikeyEl.value || '',
-                    aiModel: aiModelSelect ? aiModelSelect.value : 'deepseek-v4-flash',
-                    enableThinking: toggleThinking ? toggleThinking.checked : true,
-                    reasoningEffort: reasoningEffortSelect ? reasoningEffortSelect.value : 'high',
-                    crackScriptKeyCode: crackKeyCode,
-                    crackScriptCtrl: crackCtrl,
-                    crackScriptAlt: crackAlt,
-                    crackScriptShift: crackShift,
-                    aiScriptKeyCode: aiKeyCode,
-                    aiScriptCtrl: aiCtrl,
-                    aiScriptAlt: aiAlt,
-                    aiScriptShift: aiShift,
-                    modelSwitchKeyCode: modelSwitchKeyCode,
-                    modelSwitchCtrl: modelSwitchCtrl,
-                    modelSwitchAlt: modelSwitchAlt,
-                    modelSwitchShift: modelSwitchShift
-                },
-                aiConfig: { apiKey: apikeyEl.value || '' }
-            });
-            
-            if (settingsModal) {
+// 关闭设置（× 按钮）
+function closeSettings() {
+    if (settingsDirty) {
+        showConfirmDialog('设置有未保存的更改，确定放弃吗？', function() {
+            reloadSettingsFields().then(function() {
+                clearSettingsDirty();
                 settingsModal.classList.remove('show');
-            }
-            
-            if (res && res.ok) {
-                logStatus('设置已保存');
-                updateBalanceVisibility();
-            } else {
-                logStatus('设置保存失败');
-            }
+            });
+        });
+    } else {
+        clearSettingsDirty();
+        settingsModal.classList.remove('show');
+    }
+}
+
+if (settingsClose) {
+    settingsClose.addEventListener('click', closeSettings);
+}
+
+// 点击模态框背景关闭
+if (settingsModal) {
+    settingsModal.addEventListener('click', function(e) {
+        if (e.target === settingsModal) closeSettings();
+    });
+}
+
+// 恢复默认
+if (btnSettingsReset) {
+    btnSettingsReset.addEventListener('click', function() {
+        if (keyCrackScript) {
+            keyCrackScript.value = 'F1';
+            keyCrackScript.dataset.keyCode = '112';
+            keyCrackScript.dataset.ctrl = '0';
+            keyCrackScript.dataset.alt = '0';
+            keyCrackScript.dataset.shift = '0';
+        }
+        if (keyAIScript) {
+            keyAIScript.value = 'F2';
+            keyAIScript.dataset.keyCode = '113';
+            keyAIScript.dataset.ctrl = '0';
+            keyAIScript.dataset.alt = '0';
+            keyAIScript.dataset.shift = '0';
+        }
+        if (keyModelSwitch) {
+            keyModelSwitch.value = 'F3';
+            keyModelSwitch.dataset.keyCode = '114';
+            keyModelSwitch.dataset.ctrl = '0';
+            keyModelSwitch.dataset.alt = '0';
+            keyModelSwitch.dataset.shift = '0';
+        }
+        if (aiModelSelect) aiModelSelect.value = 'deepseek-v4-flash';
+        if (toggleThinking) toggleThinking.checked = true;
+        if (reasoningEffortSelect) {
+            reasoningEffortSelect.value = 'high';
+            reasoningEffortSelect.disabled = false;
+        }
+        saveSettings();
+    });
+}
+
+// 保存设置（供保存按钮和恢复默认共用）
+async function saveSettings() {
+    const crackKeyCode = keyCrackScript ? parseInt(keyCrackScript.dataset.keyCode || '112') : 112;
+    const crackCtrl = keyCrackScript ? (keyCrackScript.dataset.ctrl === '1') : false;
+    const crackAlt = keyCrackScript ? (keyCrackScript.dataset.alt === '1') : false;
+    const crackShift = keyCrackScript ? (keyCrackScript.dataset.shift === '1') : false;
+
+    const aiKeyCode = keyAIScript ? parseInt(keyAIScript.dataset.keyCode || '113') : 113;
+    const aiCtrl = keyAIScript ? (keyAIScript.dataset.ctrl === '1') : false;
+    const aiAlt = keyAIScript ? (keyAIScript.dataset.alt === '1') : false;
+    const aiShift = keyAIScript ? (keyAIScript.dataset.shift === '1') : false;
+
+    const modelSwitchKeyCode = keyModelSwitch ? parseInt(keyModelSwitch.dataset.keyCode || '114') : 114;
+    const modelSwitchCtrl = keyModelSwitch ? (keyModelSwitch.dataset.ctrl === '1') : false;
+    const modelSwitchAlt = keyModelSwitch ? (keyModelSwitch.dataset.alt === '1') : false;
+    const modelSwitchShift = keyModelSwitch ? (keyModelSwitch.dataset.shift === '1') : false;
+
+    const res = await window.api.setConfigs({
+        config: {
+            Target_address: targetEl.value || '',
+            Card: cardEl.value || '',
+            apiKey: apikeyEl.value || '',
+            aiModel: aiModelSelect ? aiModelSelect.value : 'deepseek-v4-flash',
+            enableThinking: toggleThinking ? toggleThinking.checked : true,
+            reasoningEffort: reasoningEffortSelect ? reasoningEffortSelect.value : 'high',
+            crackScriptKeyCode: crackKeyCode,
+            crackScriptCtrl: crackCtrl,
+            crackScriptAlt: crackAlt,
+            crackScriptShift: crackShift,
+            aiScriptKeyCode: aiKeyCode,
+            aiScriptCtrl: aiCtrl,
+            aiScriptAlt: aiAlt,
+            aiScriptShift: aiShift,
+            modelSwitchKeyCode: modelSwitchKeyCode,
+            modelSwitchCtrl: modelSwitchCtrl,
+            modelSwitchAlt: modelSwitchAlt,
+            modelSwitchShift: modelSwitchShift
+        },
+        aiConfig: { apiKey: apikeyEl.value || '' }
+    });
+
+    if (res && res.ok) {
+        logStatus('设置已保存');
+        clearSettingsDirty();
+        updateBalanceVisibility();
+        return true;
+    } else {
+        logStatus('设置保存失败');
+        return false;
+    }
+}
+
+// 保存按钮
+if (btnSettingsSave) {
+    btnSettingsSave.addEventListener('click', async function() {
+        try {
+            const ok = await saveSettings();
+            if (ok && settingsModal) settingsModal.classList.remove('show');
         } catch (e) {
             logStatus('设置保存异常: ' + (e && e.message ? e.message : String(e)));
         }
     });
 }
 
-// 点击模态框背景关闭
-if (settingsModal) {
-    settingsModal.addEventListener('click', (e) => {
-        if (e.target === settingsModal) {
-            settingsModal.classList.remove('show');
-        }
-    });
-}
-
-// 手动触发登录
-if (btnLogin) {
-    btnLogin.addEventListener('click', () => {
-        runLoginFlow();
-    });
-}
-
-// 启动按钮：复制DLL并启动目标EXE，随后隐藏UI
-if (btnStart) {
-    btnStart.addEventListener('click', async () => {
-        try {
-            const exePath = targetEl.value || '';
-            if (!isNonEmpty(exePath)) {
-                logStatus('请先选择目标 .exe');
-                return;
-            }
-            const res = await window.api.startApp(exePath);
-            if (!res || !res.ok) {
-                logStatus(res && res.error ? res.error : '启动失败');
-                return;
-            }
-            // 成功启动后，界面将由主进程隐藏
-        } catch (e) {
-            logStatus(e && e.message ? e.message : String(e));
-        }
-    });
-}
-
-// 注意：选择EXE的对话框监听仅保留一次（见下方保存配置的监听），避免重复弹窗
-
+// ====== 输入框相关 ======
 function bindToggle(inputEl, btnEl) {
-    btnEl.addEventListener('click', () => {
+    btnEl.addEventListener('click', function() {
         if (inputEl.type === 'password') {
             inputEl.type = 'text';
             btnEl.textContent = '🧐';
@@ -647,13 +753,13 @@ function bindToggle(inputEl, btnEl) {
 bindToggle(cardEl, iconToggleCard);
 bindToggle(apikeyEl, iconToggleApikey);
 
-// 输入变化时更新按钮状态
-['input', 'change'].forEach(evt => {
+['input', 'change'].forEach(function(evt) {
     targetEl.addEventListener(evt, updateButtons);
     cardEl.addEventListener(evt, updateButtons);
     apikeyEl.addEventListener(evt, updateButtons);
 });
 
+// ====== 配置加载/保存 ======
 async function loadConfigsAndFill() {
     try {
         const res = await window.api.getConfigs();
@@ -668,7 +774,6 @@ async function loadConfigsAndFill() {
             }
         }
     } catch (_) {}
-    // 首次启动：自动搜索 CxExam.exe
     if (!isNonEmpty(targetEl.value) && window.api.findCxExam) {
         try {
             const prevPlaceholder = targetEl.placeholder;
@@ -693,16 +798,11 @@ async function saveConfigs() {
             aiConfig: { apiKey: apikeyEl.value || '' }
         };
         const res = await window.api.setConfigs(payload);
-        if (res && res.error) {
-            // 静默处理错误
-        } else {
-            updateBalanceVisibility();
-        }
+        if (res && res.error) { /* 静默处理 */ } else { updateBalanceVisibility(); }
     } catch (_) {}
 }
 
-// 在关键时机保存：选择exe、登录成功后、输入失焦
-iconChooseExe.addEventListener('click', async () => {
+iconChooseExe.addEventListener('click', async function() {
     const res = await window.api.chooseExe();
     if (res && res.ok && res.path) {
         targetEl.value = res.path;
@@ -711,16 +811,13 @@ iconChooseExe.addEventListener('click', async () => {
     }
 });
 
-['blur', 'change'].forEach(evt => {
+['blur', 'change'].forEach(function(evt) {
     targetEl.addEventListener(evt, saveConfigs);
     cardEl.addEventListener(evt, saveConfigs);
     apikeyEl.addEventListener(evt, saveConfigs);
 });
 
-// 初始：加载配置填充
-loadConfigsAndFill().then(() => {
-    updateBalanceVisibility();
-});
+// ====== 初始化 ======
+setupAllBtnTips();
+loadConfigsAndFill().then(function() { updateBalanceVisibility(); });
 loadNotice();
-
-
