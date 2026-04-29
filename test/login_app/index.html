@@ -359,7 +359,7 @@
         border-radius: 14px;
         padding: 22px 28px;
         width: 420px;
-        max-height: 82vh;
+        max-height: 90vh;
         overflow-y: auto;
         box-shadow: var(--shadow-lg);
         position: relative;
@@ -419,18 +419,38 @@
         outline: none;
       }
       .settings-key-input:focus { border-color: var(--primary); background: #fff; }
-      .settings-select {
-        width: 190px;
-        padding: 7px 10px;
-        border: 1.5px solid var(--border);
-        border-radius: var(--radius-sm);
-        font-size: 13px;
-        background: #F9FAFB;
-        cursor: pointer;
-        outline: none;
+      .cs-wrap { position: relative; width: 190px; }
+      .cs-display {
+        width: 100%; display: flex; align-items: center; justify-content: space-between;
+        padding: 7px 12px; border: 1.5px solid var(--border);
+        border-radius: var(--radius-sm); font-size: 13px; color: var(--text);
+        background: #F9FAFB; cursor: pointer; outline: none;
+        transition: border-color .15s, box-shadow .15s, background-color .15s;
       }
-      .settings-select:focus { border-color: var(--primary); }
-      .settings-select:disabled { opacity: .4; cursor: not-allowed; }
+      .cs-display:hover { border-color: #D1D5DB; background-color: #fff; }
+      .cs-wrap.open .cs-display {
+        border-color: var(--primary); box-shadow: 0 0 0 3px rgba(79,70,229,.1);
+        background-color: #fff;
+      }
+      .cs-display.disabled { opacity: .4; cursor: not-allowed; }
+      .cs-display.disabled:hover { border-color: var(--border); background: #F9FAFB; }
+      .cs-arrow { flex-shrink: 0; margin-left: 8px; transition: transform .2s; }
+      .cs-wrap.open .cs-arrow { transform: rotate(180deg); }
+      .cs-menu {
+        position: fixed;
+        background: #fff; border: 1px solid var(--border); border-radius: var(--radius-sm);
+        box-shadow: 0 8px 24px rgba(0,0,0,.12); z-index: 110;
+        display: none; overflow: hidden; padding: 4px;
+      }
+      .cs-wrap.open .cs-menu { display: block; }
+      .cs-opt {
+        display: block; width: 100%; padding: 7px 10px; margin: 1px 0;
+        border: none; border-radius: 4px; background: transparent;
+        font-size: 13px; color: var(--text); text-align: left; cursor: pointer;
+        transition: background-color .1s; outline: none;
+      }
+      .cs-opt:hover { background-color: #F3F4F6; }
+      .cs-opt.selected { color: var(--primary); font-weight: 600; background-color: #EEF2FF; }
 
       /* 开关 */
       .settings-switch {
@@ -626,7 +646,7 @@
             <button id="btnHelp" class="btn btn-outline btn-util">使用说明</button>
           </div>
           <div class="tip-wrapper">
-            <div class="btn-tip" id="tipUpdate">密码：6666</div>
+            <div class="btn-tip" id="tipUpdate">密码:6666</div>
             <button id="btnUpdate" class="btn btn-outline btn-util">更新</button>
           </div>
           <div class="tip-wrapper">
@@ -651,7 +671,7 @@
           <span id="balanceTotal" class="balance-value">--</span>
           <span id="balanceCurrency"></span>
           <span class="tip-wrapper" style="max-width:none; flex:none; display:inline-flex;">
-            <div class="btn-tip">手动刷新余额</div>
+            <div class="btn-tip">刷新余额</div>
             <span id="balanceRefresh" class="balance-refresh">↻</span>
           </span>
         </div>
@@ -698,10 +718,20 @@
               <div class="setting-tip" id="tipAiModel">选择回答使用的默认模型</div>
               <span class="settings-label">默认模型</span>
             </span>
-            <select id="aiModelSelect" class="settings-select">
-                <option value="deepseek-v4-flash">deepseek-v4-flash</option>
-                <option value="deepseek-v4-pro">deepseek-v4-pro</option>
-              </select>
+            <div class="cs-wrap" id="aiModelSelectWrap">
+                <select id="aiModelSelect" style="display:none;">
+                  <option value="deepseek-v4-flash">deepseek-v4-flash</option>
+                  <option value="deepseek-v4-pro">deepseek-v4-pro</option>
+                </select>
+                <button type="button" class="cs-display" tabindex="0">
+                  <span class="cs-val"></span>
+                  <svg class="cs-arrow" width="12" height="12" viewBox="0 0 12 12"><path fill="#6B7280" d="M6 8L1 3h10z"/></svg>
+                </button>
+                <div class="cs-menu">
+                  <button type="button" class="cs-opt" data-val="deepseek-v4-flash">deepseek-v4-flash</button>
+                  <button type="button" class="cs-opt" data-val="deepseek-v4-pro">deepseek-v4-pro</button>
+                </div>
+              </div>
           </div>
           <div class="settings-row">
             <span class="settings-tip-wrap">
@@ -718,11 +748,22 @@
               <div class="setting-tip" id="tipEffort">强度越高回答质量越好但耗时越久</div>
               <span class="settings-label">推理强度 <span class="settings-label-hint">(需开启推理)</span></span>
             </span>
-            <select id="reasoningEffortSelect" class="settings-select">
-              <option value="low">低</option>
-              <option value="medium">中</option>
-              <option value="high" selected>高</option>
-            </select>
+            <div class="cs-wrap" id="reasoningEffortSelectWrap">
+                <select id="reasoningEffortSelect" style="display:none;">
+                  <option value="low">低</option>
+                  <option value="medium">中</option>
+                  <option value="high" selected>高</option>
+                </select>
+                <button type="button" class="cs-display" tabindex="0">
+                  <span class="cs-val"></span>
+                  <svg class="cs-arrow" width="12" height="12" viewBox="0 0 12 12"><path fill="#6B7280" d="M6 8L1 3h10z"/></svg>
+                </button>
+                <div class="cs-menu">
+                  <button type="button" class="cs-opt" data-val="low">低</button>
+                  <button type="button" class="cs-opt" data-val="medium">中</button>
+                  <button type="button" class="cs-opt" data-val="high">高</button>
+                </div>
+              </div>
           </div>
         </div>
 

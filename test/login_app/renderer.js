@@ -71,6 +71,89 @@ function setupAllSettingTips() {
     document.querySelectorAll('.settings-tip-wrap').forEach(function(el) { setupSettingTip(el); });
 }
 
+// ====== 自定义下拉选择 ======
+function setupCustomSelect(wrapEl) {
+    if (!wrapEl) return;
+    var select = wrapEl.querySelector('select');
+    var display = wrapEl.querySelector('.cs-display');
+    var valSpan = wrapEl.querySelector('.cs-val');
+    var menu = wrapEl.querySelector('.cs-menu');
+    var opts = menu ? menu.querySelectorAll('.cs-opt') : [];
+    if (!select || !display || !valSpan || !menu) return;
+
+    function syncDisplay() {
+        var idx = select.selectedIndex;
+        var selectedOpt = idx >= 0 ? select.options[idx] : null;
+        valSpan.textContent = selectedOpt ? selectedOpt.textContent : '';
+        opts.forEach(function(opt) {
+            opt.classList.toggle('selected', opt.dataset.val === select.value);
+        });
+    }
+
+    function updateDisabled() {
+        display.classList.toggle('disabled', select.disabled);
+        if (select.disabled) wrapEl.classList.remove('open');
+    }
+
+    syncDisplay();
+    updateDisabled();
+
+    function positionMenu() {
+        var dr = display.getBoundingClientRect();
+        menu.style.display = 'block';
+        menu.style.visibility = 'hidden';
+        var menuH = menu.offsetHeight;
+        menu.style.display = '';
+        menu.style.visibility = '';
+        menu.style.width = dr.width + 'px';
+        menu.style.left = dr.left + 'px';
+        var fitsBelow = (dr.bottom + 4 + menuH) <= window.innerHeight;
+        if (fitsBelow) {
+            menu.style.top = (dr.bottom + 4) + 'px';
+            menu.style.bottom = 'auto';
+        } else {
+            menu.style.top = 'auto';
+            menu.style.bottom = (window.innerHeight - dr.top + 4) + 'px';
+        }
+    }
+
+    display.addEventListener('click', function() {
+        if (select.disabled) return;
+        syncDisplay();
+        var opening = !wrapEl.classList.contains('open');
+        if (opening) positionMenu();
+        wrapEl.classList.toggle('open');
+    });
+
+    opts.forEach(function(opt) {
+        opt.addEventListener('click', function() {
+            if (select.value !== opt.dataset.val) {
+                select.value = opt.dataset.val;
+                syncDisplay();
+                select.dispatchEvent(new Event('change', { bubbles: true }));
+            }
+            wrapEl.classList.remove('open');
+        });
+    });
+
+    document.addEventListener('click', function(e) {
+        if (!wrapEl.contains(e.target)) wrapEl.classList.remove('open');
+    });
+
+    var settingsContent = document.querySelector('.settings-content');
+    if (settingsContent) {
+        settingsContent.addEventListener('scroll', function() {
+            wrapEl.classList.remove('open');
+        });
+    }
+
+    new MutationObserver(function() { updateDisabled(); })
+        .observe(select, { attributes: true, attributeFilter: ['disabled'] });
+
+    wrapEl._syncDisplay = syncDisplay;
+    wrapEl._syncDisabled = updateDisabled;
+}
+
 // ====== 自定义确认对话框 ======
 let confirmCallback = null;
 
@@ -496,7 +579,7 @@ function setupKeyInput(inputEl, defaultKey) {
             inputEl.style.backgroundColor = '#fff';
             isCapturing = false;
             pressedModifiers = { ctrl: false, alt: false, shift: false };
-            markSettingsDirty();
+            recalcDirty();
         }
     });
 
@@ -520,13 +603,51 @@ function setupKeyInput(inputEl, defaultKey) {
 // ====== 设置面板 ======
 let settingsDirty = false;
 let settingsLoading = false;
+let settingsOriginals = {};
 
-function markSettingsDirty() {
-    if (!settingsLoading) { settingsDirty = true; }
+function snapshotSettingsOriginals() {
+    settingsOriginals = {
+        aiModel: aiModelSelect ? aiModelSelect.value : '',
+        enableThinking: toggleThinking ? toggleThinking.checked : true,
+        reasoningEffort: reasoningEffortSelect ? reasoningEffortSelect.value : '',
+        crackKeyCode: keyCrackScript ? keyCrackScript.dataset.keyCode || '' : '',
+        crackCtrl: keyCrackScript ? keyCrackScript.dataset.ctrl || '' : '',
+        crackAlt: keyCrackScript ? keyCrackScript.dataset.alt || '' : '',
+        crackShift: keyCrackScript ? keyCrackScript.dataset.shift || '' : '',
+        aiKeyCode: keyAIScript ? keyAIScript.dataset.keyCode || '' : '',
+        aiCtrl: keyAIScript ? keyAIScript.dataset.ctrl || '' : '',
+        aiAlt: keyAIScript ? keyAIScript.dataset.alt || '' : '',
+        aiShift: keyAIScript ? keyAIScript.dataset.shift || '' : '',
+        modelKeyCode: keyModelSwitch ? keyModelSwitch.dataset.keyCode || '' : '',
+        modelCtrl: keyModelSwitch ? keyModelSwitch.dataset.ctrl || '' : '',
+        modelAlt: keyModelSwitch ? keyModelSwitch.dataset.alt || '' : '',
+        modelShift: keyModelSwitch ? keyModelSwitch.dataset.shift || '' : ''
+    };
 }
 
 function clearSettingsDirty() {
     settingsDirty = false;
+}
+
+function recalcDirty() {
+    if (settingsLoading) return;
+    settingsDirty = (
+        (aiModelSelect ? aiModelSelect.value : '') !== settingsOriginals.aiModel ||
+        (toggleThinking ? toggleThinking.checked : true) !== settingsOriginals.enableThinking ||
+        (reasoningEffortSelect ? reasoningEffortSelect.value : '') !== settingsOriginals.reasoningEffort ||
+        (keyCrackScript ? keyCrackScript.dataset.keyCode || '' : '') !== settingsOriginals.crackKeyCode ||
+        (keyCrackScript ? keyCrackScript.dataset.ctrl || '' : '') !== settingsOriginals.crackCtrl ||
+        (keyCrackScript ? keyCrackScript.dataset.alt || '' : '') !== settingsOriginals.crackAlt ||
+        (keyCrackScript ? keyCrackScript.dataset.shift || '' : '') !== settingsOriginals.crackShift ||
+        (keyAIScript ? keyAIScript.dataset.keyCode || '' : '') !== settingsOriginals.aiKeyCode ||
+        (keyAIScript ? keyAIScript.dataset.ctrl || '' : '') !== settingsOriginals.aiCtrl ||
+        (keyAIScript ? keyAIScript.dataset.alt || '' : '') !== settingsOriginals.aiAlt ||
+        (keyAIScript ? keyAIScript.dataset.shift || '' : '') !== settingsOriginals.aiShift ||
+        (keyModelSwitch ? keyModelSwitch.dataset.keyCode || '' : '') !== settingsOriginals.modelKeyCode ||
+        (keyModelSwitch ? keyModelSwitch.dataset.ctrl || '' : '') !== settingsOriginals.modelCtrl ||
+        (keyModelSwitch ? keyModelSwitch.dataset.alt || '' : '') !== settingsOriginals.modelAlt ||
+        (keyModelSwitch ? keyModelSwitch.dataset.shift || '' : '') !== settingsOriginals.modelShift
+    );
 }
 
 // 打开设置（首次初始化事件监听，每次打开时刷新字段）
@@ -539,15 +660,17 @@ function initSettingsOnce() {
     setupKeyInput(keyAIScript, 'F2');
     setupKeyInput(keyModelSwitch, 'F3');
     setupAllSettingTips();
+    setupCustomSelect($('aiModelSelectWrap'));
+    setupCustomSelect($('reasoningEffortSelectWrap'));
     if (toggleThinking && reasoningEffortSelect) {
         toggleThinking.onchange = function() {
             reasoningEffortSelect.disabled = !toggleThinking.checked;
-            markSettingsDirty();
+            recalcDirty();
         };
     }
-    if (aiModelSelect) aiModelSelect.addEventListener('change', markSettingsDirty);
-    if (toggleThinking) toggleThinking.addEventListener('change', markSettingsDirty);
-    if (reasoningEffortSelect) reasoningEffortSelect.addEventListener('change', markSettingsDirty);
+    if (aiModelSelect) aiModelSelect.addEventListener('change', recalcDirty);
+    if (toggleThinking) toggleThinking.addEventListener('change', recalcDirty);
+    if (reasoningEffortSelect) reasoningEffortSelect.addEventListener('change', recalcDirty);
 }
 
 if (btnSettings) {
@@ -603,13 +726,14 @@ async function reloadSettingsFields() {
                 keyModelSwitch.dataset.alt = a ? '1' : '0';
                 keyModelSwitch.dataset.shift = s ? '1' : '0';
             }
-            if (aiModelSelect) aiModelSelect.value = config.aiModel || 'deepseek-v4-flash';
+            if (aiModelSelect) { aiModelSelect.value = config.aiModel || 'deepseek-v4-flash'; $('aiModelSelectWrap')._syncDisplay(); }
             if (toggleThinking) {
                 toggleThinking.checked = config.enableThinking !== false;
                 if (reasoningEffortSelect) reasoningEffortSelect.disabled = !toggleThinking.checked;
             }
-            if (reasoningEffortSelect) reasoningEffortSelect.value = config.reasoningEffort || 'high';
+            if (reasoningEffortSelect) { reasoningEffortSelect.value = config.reasoningEffort || 'high'; $('reasoningEffortSelectWrap')._syncDisplay(); }
         }
+        snapshotSettingsOriginals();
     } catch (_) {}
 }
 
@@ -663,11 +787,12 @@ if (btnSettingsReset) {
             keyModelSwitch.dataset.alt = '0';
             keyModelSwitch.dataset.shift = '0';
         }
-        if (aiModelSelect) aiModelSelect.value = 'deepseek-v4-flash';
+        if (aiModelSelect) { aiModelSelect.value = 'deepseek-v4-flash'; $('aiModelSelectWrap')._syncDisplay(); }
         if (toggleThinking) toggleThinking.checked = true;
         if (reasoningEffortSelect) {
             reasoningEffortSelect.value = 'high';
             reasoningEffortSelect.disabled = false;
+            $('reasoningEffortSelectWrap')._syncDisplay();
         }
         saveSettings();
     });
@@ -716,6 +841,7 @@ async function saveSettings() {
 
     if (res && res.ok) {
         logStatus('设置已保存');
+        snapshotSettingsOriginals();
         clearSettingsDirty();
         updateBalanceVisibility();
         return true;
