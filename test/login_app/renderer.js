@@ -307,7 +307,7 @@ if (btnTestApi) {
                 const err = (res && res.error) ? res.error : '检测失败';
                 logStatus('API Key 检测失败：' + err);
             } else if (res.valid) {
-                logStatus('API Key 有效' + (res.model ? '，模型：' + res.model : ''));
+                logStatus('API Key 有效');
             } else {
                 logStatus('API Key 无效：' + (res.error || '未知原因'));
             }

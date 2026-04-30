@@ -409,7 +409,7 @@ ipcMain.handle('test-api-key', async (event, apiKey) => {
             return { ok: true, valid: true, model: firstModel ? firstModel.id : undefined };
         }
         if (body.status === 401 || body.status === 403) {
-            return { ok: true, valid: false, error: 'API Key 无效或无权限' };
+            return { ok: true, valid: false, error: 'API Key无效或无权限, 请检查API Key是否正确' };
         }
         if (body.body && body.body.error && body.body.error.message) {
             return { ok: true, valid: false, error: body.body.error.message };
