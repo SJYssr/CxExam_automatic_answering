@@ -1,5 +1,0 @@
-{
-  "devDependencies": {
-    "electron-bytenode-webpack-plugin": "^1.1.2"
-  }
-}
