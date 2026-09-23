@@ -123,6 +123,13 @@
     altWarning.innerHTML = '页面加载后自动开始获取AI答案<br>- 如果鼠标中键按下时没有答案数据，会自动触发获取答案';
     altWarning.style.marginBottom = '10px';
     notificationDiv.appendChild(altWarning);
+
+    // AI Key 配置提示
+    const aiConfigHint = document.createElement('div');
+    aiConfigHint.innerHTML = 'AI Key 配置：按 <b>Ctrl+Alt+K</b> 打开设置面板，或在 winmm.dll 同目录的 config.json 中填写 {"apiKey": "sk-xxxx"}';
+    aiConfigHint.style.marginBottom = '10px';
+    aiConfigHint.style.fontSize = '13px';
+    notificationDiv.appendChild(aiConfigHint);
     
     
     // 添加关闭按钮

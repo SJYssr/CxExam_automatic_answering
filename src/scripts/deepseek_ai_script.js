@@ -40,9 +40,233 @@
     window.__deepseekAILoaded = true;
 
     // DeepSeek API配置
-    const DEEPSEEK_API_KEY = '';//更改deepseekapikey
+    // API Key 支持两种配置方式（无需修改脚本、无需重新编译 DLL）：
+    //   1. 页面内设置面板：按 Ctrl+Alt+K 打开，Key 保存在本机浏览器中（优先级更高）
+    //   2. config.json 文件：与 winmm.dll 同目录，内容 {"apiKey": "sk-xxxx"}，
+    //      由 DLL 注入为 window.__CX_AI_CONFIG__
+    const AI_API_KEY_STORAGE = '__cxAiApiKey';
     const DEEPSEEK_API_ENDPOINT = 'https://api.deepseek.com/v1/chat/completions';
     const AI_MODEL = 'deepseek-chat';
+
+    /**
+     * 获取当前生效的 API Key 及其来源
+     * 优先级：页面设置（localStorage）> config.json 注入值（window.__CX_AI_CONFIG__）
+     */
+    function getAIConfig() {
+        try {
+            const saved = localStorage.getItem(AI_API_KEY_STORAGE);
+            if (saved && saved.trim()) {
+                return { apiKey: saved.trim(), source: '页面设置' };
+            }
+        } catch (e) { /* localStorage 不可用时忽略 */ }
+
+        const injected = window.__CX_AI_CONFIG__ && window.__CX_AI_CONFIG__.apiKey;
+        if (injected && injected.trim()) {
+            return { apiKey: injected.trim(), source: 'config.json' };
+        }
+        return { apiKey: '', source: '' };
+    }
+
+    // 设置面板是否已自动弹出过（避免每次自动获取答案都弹出）
+    let settingsDialogShown = false;
+
+    /**
+     * 显示顶部提示气泡（自动消失），用于把错误信息直接呈现给用户
+     * @param {string} message - 提示内容
+     * @param {boolean} isError - 是否为错误样式
+     */
+    function showAIToast(message, isError) {
+        try {
+            const toast = document.createElement('div');
+            toast.textContent = message;
+            Object.assign(toast.style, {
+                position: 'fixed',
+                top: '70px',
+                left: '50%',
+                transform: 'translateX(-50%)',
+                backgroundColor: isError ? 'rgba(231, 76, 60, 0.95)' : 'rgba(46, 204, 113, 0.95)',
+                color: 'white',
+                padding: '10px 18px',
+                borderRadius: '8px',
+                boxShadow: '0 4px 8px rgba(0,0,0,0.25)',
+                zIndex: '10000000',
+                fontFamily: 'Arial, sans-serif',
+                fontSize: '13px',
+                maxWidth: '60%',
+                lineHeight: '1.5'
+            });
+            document.body.appendChild(toast);
+            setTimeout(() => {
+                if (toast.parentNode) {
+                    toast.parentNode.removeChild(toast);
+                }
+            }, 6000);
+        } catch (e) { /* UI 异常不影响主流程 */ }
+    }
+
+    /**
+     * 对 API Key 做脱敏显示
+     */
+    function maskApiKey(key) {
+        if (!key) {
+            return '（未设置）';
+        }
+        if (key.length <= 10) {
+            return key.slice(0, 3) + '****';
+        }
+        return key.slice(0, 6) + '****' + key.slice(-4);
+    }
+
+    /**
+     * 打开 API Key 设置面板
+     * @param {string} notice - 打开原因说明（如错误信息），可为空
+     */
+    function openAISettingsDialog(notice) {
+        try {
+            // 已打开则不重复创建
+            if (document.getElementById('__cx_ai_settings_overlay')) {
+                return;
+            }
+
+            const config = getAIConfig();
+
+            const overlay = document.createElement('div');
+            overlay.id = '__cx_ai_settings_overlay';
+            Object.assign(overlay.style, {
+                position: 'fixed',
+                top: '0',
+                left: '0',
+                width: '100%',
+                height: '100%',
+                backgroundColor: 'rgba(0,0,0,0.45)',
+                zIndex: '10000001',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+            });
+
+            const panel = document.createElement('div');
+            Object.assign(panel.style, {
+                backgroundColor: 'white',
+                borderRadius: '10px',
+                padding: '20px 24px',
+                width: '440px',
+                maxWidth: '90%',
+                fontFamily: 'Arial, sans-serif',
+                boxShadow: '0 8px 24px rgba(0,0,0,0.3)'
+            });
+
+            const title = document.createElement('div');
+            title.textContent = 'AI 答题设置';
+            title.style.cssText = 'font-size:16px;font-weight:bold;margin-bottom:10px;';
+            panel.appendChild(title);
+
+            function closeDialog() {
+                if (overlay.parentNode) {
+                    overlay.parentNode.removeChild(overlay);
+                }
+            }
+
+            if (notice) {
+                const noticeDiv = document.createElement('div');
+                noticeDiv.textContent = notice;
+                noticeDiv.style.cssText = 'font-size:13px;color:#e74c3c;margin-bottom:10px;line-height:1.5;';
+                panel.appendChild(noticeDiv);
+            }
+
+            const currentDiv = document.createElement('div');
+            currentDiv.textContent = '当前 API Key：' + maskApiKey(config.apiKey) + (config.source ? '（来源：' + config.source + '）' : '');
+            currentDiv.style.cssText = 'font-size:13px;color:#555;margin-bottom:10px;word-break:break-all;';
+            panel.appendChild(currentDiv);
+
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.placeholder = '粘贴 DeepSeek API Key（sk-...）';
+            Object.assign(input.style, {
+                width: '100%',
+                boxSizing: 'border-box',
+                padding: '8px 10px',
+                fontSize: '13px',
+                border: '1px solid #ccc',
+                borderRadius: '6px',
+                marginBottom: '8px',
+                outline: 'none'
+            });
+            panel.appendChild(input);
+
+            const hint = document.createElement('div');
+            hint.textContent = 'Key 保存在本机浏览器中，仅用于直接请求 DeepSeek 服务。也可以改用 winmm.dll 同目录的 config.json：{"apiKey": "sk-xxxx"}';
+            hint.style.cssText = 'font-size:12px;color:#888;margin-bottom:14px;line-height:1.5;';
+            panel.appendChild(hint);
+
+            const btnRow = document.createElement('div');
+            btnRow.style.cssText = 'display:flex;gap:8px;justify-content:flex-end;';
+
+            function makeButton(text, bg) {
+                const btn = document.createElement('button');
+                btn.textContent = text;
+                Object.assign(btn.style, {
+                    padding: '7px 16px',
+                    fontSize: '13px',
+                    color: 'white',
+                    backgroundColor: bg,
+                    border: 'none',
+                    borderRadius: '6px',
+                    cursor: 'pointer'
+                });
+                return btn;
+            }
+
+            const saveBtn = makeButton('保存', '#2ecc71');
+            saveBtn.addEventListener('click', function() {
+                const val = (input.value || '').trim();
+                if (!val) {
+                    input.style.borderColor = '#e74c3c';
+                    input.placeholder = 'API Key 不能为空';
+                    return;
+                }
+                try {
+                    localStorage.setItem(AI_API_KEY_STORAGE, val);
+                } catch (e) {
+                    showAIToast('[AI答题] 保存失败：浏览器本地存储不可用', true);
+                    return;
+                }
+                closeDialog();
+                showAIToast('[AI答题] API Key 已保存，开始获取答案…');
+                isProcessing = false;
+                fetchAllAnswers();
+            });
+
+            const clearBtn = makeButton('清除已保存', '#95a5a6');
+            clearBtn.addEventListener('click', function() {
+                try {
+                    localStorage.removeItem(AI_API_KEY_STORAGE);
+                } catch (e) { /* 忽略 */ }
+                closeDialog();
+                showAIToast('[AI答题] 已清除页面内保存的 API Key（config.json 中的配置仍会生效）');
+            });
+
+            const cancelBtn = makeButton('关闭', '#7f8c8d');
+            cancelBtn.addEventListener('click', closeDialog);
+
+            btnRow.appendChild(saveBtn);
+            btnRow.appendChild(clearBtn);
+            btnRow.appendChild(cancelBtn);
+            panel.appendChild(btnRow);
+
+            overlay.addEventListener('click', function(event) {
+                if (event.target === overlay) {
+                    closeDialog();
+                }
+            });
+
+            overlay.appendChild(panel);
+            document.body.appendChild(overlay);
+            input.focus();
+        } catch (e) {
+            console.error('[AI答题] 打开设置面板失败:', e);
+        }
+    }
 
     // 初始化脚本
     function initScript() {
@@ -161,8 +385,16 @@
         console.log('[AI答题] 页面加载完成，开始自动获取AI答案...');
         fetchAllAnswers();
         
+        // 监听 Ctrl+Alt+K - 打开 API Key 设置面板
+        document.addEventListener('keydown', function(event) {
+            if (event.ctrlKey && event.altKey && (event.code === 'KeyK' || event.key === 'k' || event.key === 'K')) {
+                event.preventDefault();
+                openAISettingsDialog('');
+            }
+        });
+
         console.log('[AI答题] 脚本初始化完成');
-        console.log('[AI答题] 使用说明: 复制内容后自动获取AI答案，点击输入框自动填充 | 鼠标中键=填充全部答案');
+        console.log('[AI答题] 使用说明: 复制内容后自动获取AI答案，点击输入框自动填充 | 鼠标中键=填充全部答案 | Ctrl+Alt+K=配置API Key');
     }
 
     // 全局变量用于防止重复执行
@@ -174,8 +406,10 @@
      */
     async function handleCopyAIRequest(copiedText) {
         // 检查API Key
-        if (!DEEPSEEK_API_KEY || DEEPSEEK_API_KEY.trim() === '') {
+        const { apiKey } = getAIConfig();
+        if (!apiKey) {
             console.error('[AI答题] API Key 未配置，无法使用复制功能');
+            showAIToast('[AI答题] 未配置 API Key，按 Ctrl+Alt+K 打开设置面板填写后，重新复制题目即可。', true);
             return;
         }
         
@@ -226,6 +460,7 @@
             
         } catch (error) {
             console.error('[AI答题] 复制AI请求失败:', error);
+            showAIToast('[AI答题] 获取答案失败：' + (error.message || '未知错误'), true);
             // 清除存储的答案
             window.copiedAIAnswer = null;
         } finally {
@@ -471,13 +706,19 @@
         isProcessing = true;
         
         // 检查API Key
-        if (!DEEPSEEK_API_KEY || DEEPSEEK_API_KEY.trim() === '') {
+        const config = getAIConfig();
+        if (!config.apiKey) {
             console.error('[AI答题]API Key 未配置');
+            showAIToast('[AI答题] 未配置 API Key：按 Ctrl+Alt+K 打开设置面板填写，或在 winmm.dll 同目录的 config.json 中配置。', true);
+            if (!settingsDialogShown) {
+                settingsDialogShown = true;
+                openAISettingsDialog('尚未配置 API Key，AI 答题功能未启用。可在此粘贴 DeepSeek API Key，或改用 winmm.dll 同目录的 config.json 配置。');
+            }
             isProcessing = false;
             return;
         }
-        
-        console.log('[AI答题]API Key 已配置，开始处理题目...');
+
+        console.log('[AI答题]API Key 已配置（来源：' + config.source + '），开始处理题目...');
         
         // 使用局部变量存储答案数据
         const answersData = {};
@@ -561,6 +802,14 @@
             console.log('[AI答题] 答案获取完成');
             console.log('[AI答题] 答案数据统计：', Object.keys(answersData).length, '道题目');
             
+            // 统计失败的题目，给出汇总提示（避免逐题提示刷屏）
+            const allResults = Object.values(answersData);
+            const failedResults = allResults.filter(item => item && item.error);
+            if (failedResults.length > 0) {
+                const lastFailed = failedResults[failedResults.length - 1];
+                showAIToast('[AI答题] ' + failedResults.length + '/' + allResults.length + ' 道题目获取失败。' + (lastFailed.message ? '最后错误：' + lastFailed.message : ''), true);
+            }
+
             // 将答案数据存储到全局变量中供填充
             window.aiAnswersData = answersData;
             
@@ -635,12 +884,17 @@
      * 向 DeepSeek API 发送请求获取答案
      */
     async function fetchDeepSeekAnswer(prompt) {
+        const { apiKey } = getAIConfig();
+        if (!apiKey) {
+            openAISettingsDialog('尚未配置 API Key，无法请求 AI 服务。');
+            throw new Error('API Key 未配置');
+        }
         try {
             const response = await fetch(DEEPSEEK_API_ENDPOINT, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
-                    "Authorization": `Bearer ${DEEPSEEK_API_KEY}`
+                    "Authorization": `Bearer ${apiKey}`
                 },
                 body: JSON.stringify({
                     model: AI_MODEL,
@@ -655,6 +909,10 @@
             });
             
             if (!response.ok) {
+                if (response.status === 401 || response.status === 403) {
+                    openAISettingsDialog('AI 服务返回 ' + response.status + '：API Key 无效或没有权限，请检查后重新填写。');
+                    throw new Error('API Key 无效或没有权限（HTTP ' + response.status + '）');
+                }
                 throw new Error(`HTTP错误: ${response.status} ${response.statusText}`);
             }
             
@@ -676,7 +934,8 @@
             } else if (data.error) {
                 let errorMessage = `API Error: ${data.error.message}`;
                 if (data.error.code === 'invalid_api_key') {
-                    errorMessage += " (API Key 无效，请检查)";
+                    errorMessage += " (API Key 无效，请在设置面板中更新)";
+                    openAISettingsDialog('DeepSeek 返回 API Key 无效，请重新填写。');
                 } else if (data.error.code === 'insufficient_quota') {
                     errorMessage += " (额度不足，请充值)";
                 } else if (data.error.code === 'model_not_found') {

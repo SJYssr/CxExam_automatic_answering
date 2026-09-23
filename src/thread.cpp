@@ -10,6 +10,7 @@
 #include <windows.h>
 #include <vector>
 #include <algorithm>
+#include <fstream>
 
 #pragma comment(lib, "ole32.lib")
 #pragma comment(lib, "oleaut32.lib")
@@ -24,14 +25,6 @@ PVOID g_set_window_display_affinity = nullptr;  // 设置窗口显示属性函�
 
 // 用于跟踪是否是首次注入
 bool g_first_injection = true;
-
-// 主板认证相关全局变量
-std::string g_key = "SJYssr666";//勿动，如需更改还要更改/get_uuid_xor/main.py中的key
-std::string g_encrypted_text = "";//更改此行加密的主板信息
-bool g_authentication_success = false;
-
-// 主板认证函数声明
-bool motherboard_authentication();
 
 // 定义CEF字符串函数类型
 typedef int(CEF_EXPORT* cef_string_from_ptr_t)(const TCHAR*, size_t, cef_string_utf16_t*);
@@ -95,6 +88,132 @@ string_t LoadScriptFromResource(int resourceId) {
     
     return result;
 #endif
+}
+
+// 获取 winmm.dll 所在目录（config.json 与 DLL 同目录）
+static std::wstring GetDllDirectoryPath() {
+    wchar_t path[MAX_PATH] = { 0 };
+    HMODULE hModule = GetModuleHandle(TEXT("winmm.dll"));
+    if (hModule && GetModuleFileNameW(hModule, path, MAX_PATH)) {
+        std::wstring dir(path);
+        size_t pos = dir.find_last_of(L"\\/");
+        if (pos != std::wstring::npos) {
+            dir = dir.substr(0, pos + 1);
+        }
+        return dir;
+    }
+    return L"";
+}
+
+// 从 config.json 内容中提取 "apiKey" 字段的字符串值（最小 JSON 解析）
+static std::wstring ExtractApiKeyFromJson(const std::wstring& content) {
+    size_t keyPos = content.find(L"\"apiKey\"");
+    if (keyPos == std::wstring::npos) {
+        return L"";
+    }
+    size_t colonPos = content.find(L':', keyPos + 8);
+    if (colonPos == std::wstring::npos) {
+        return L"";
+    }
+    size_t quoteStart = content.find(L'"', colonPos + 1);
+    if (quoteStart == std::wstring::npos) {
+        return L"";
+    }
+
+    std::wstring value;
+    for (size_t i = quoteStart + 1; i < content.size(); ++i) {
+        wchar_t c = content[i];
+        if (c == L'\\' && i + 1 < content.size()) {
+            wchar_t next = content[++i];
+            switch (next) {
+                case L'"': value += L'"'; break;
+                case L'\\': value += L'\\'; break;
+                case L'/': value += L'/'; break;
+                case L'n': value += L'\n'; break;
+                case L'r': value += L'\r'; break;
+                case L't': value += L'\t'; break;
+                case L'u': {
+                    // 解析4位十六进制 \uXXXX
+                    int code = 0;
+                    bool ok = (i + 4 < content.size());
+                    for (int k = 1; k <= 4 && ok; ++k) {
+                        wchar_t h = content[i + k];
+                        int d;
+                        if (h >= L'0' && h <= L'9') d = h - L'0';
+                        else if (h >= L'a' && h <= L'f') d = h - L'a' + 10;
+                        else if (h >= L'A' && h <= L'F') d = h - L'A' + 10;
+                        else { ok = false; break; }
+                        code = code * 16 + d;
+                    }
+                    if (ok) {
+                        value += static_cast<wchar_t>(code);
+                        i += 4;
+                    }
+                    break;
+                }
+                default: value += next; break;
+            }
+        } else if (c == L'"') {
+            return value;  // 字符串结束
+        } else {
+            value += c;
+        }
+    }
+    return value;
+}
+
+// 读取 config.json（与 winmm.dll 同目录），生成注入页面前的 AI 配置脚本：
+// window.__CX_AI_CONFIG__ = {"apiKey": "..."}，由 AI 脚本在运行时读取。
+// 每次页面加载完成都会重新读取，修改 config.json 后刷新页面即可生效。
+static string_t BuildAIConfigPrelude() {
+    string_t prelude = TEXT("window.__CX_AI_CONFIG__ = {\"apiKey\": \"\"};");
+
+    std::wstring dir = GetDllDirectoryPath();
+    if (dir.empty()) {
+        return prelude;
+    }
+
+    std::ifstream file(dir + L"config.json", std::ios::binary);
+    if (!file.is_open()) {
+        return prelude;
+    }
+
+    std::string utf8((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+    file.close();
+    if (utf8.empty()) {
+        return prelude;
+    }
+
+    // UTF-8 转宽字符
+    int wideLen = MultiByteToWideChar(CP_UTF8, 0, utf8.c_str(), static_cast<int>(utf8.size()), nullptr, 0);
+    if (wideLen <= 0) {
+        return prelude;
+    }
+    std::wstring content(wideLen, L'\0');
+    MultiByteToWideChar(CP_UTF8, 0, utf8.c_str(), static_cast<int>(utf8.size()), &content[0], wideLen);
+
+    std::wstring apiKey = ExtractApiKeyFromJson(content);
+    if (apiKey.empty()) {
+        return prelude;
+    }
+
+    // 转义为可安全嵌入 JS 字符串字面量的内容
+    std::wstring escaped;
+    for (wchar_t c : apiKey) {
+        if (c == L'\\' || c == L'"') {
+            escaped += L'\\';
+        }
+        if (c >= 0x20) {
+            escaped += c;
+        } else {
+            escaped += L' ';  // 控制字符替换为空格，避免破坏脚本
+        }
+    }
+
+    string_t result = TEXT("window.__CX_AI_CONFIG__ = {\"apiKey\": \"");
+    result += escaped;
+    result += TEXT("\"};");
+    return result;
 }
 
 // 钩子函数：hook_set_window_display_affinity
@@ -210,17 +329,6 @@ void CEF_CALLBACK hook_cef_on_load_end(
         return;
     }
 
-    // 只有在主板认证成功时才执行注入
-    if (!g_authentication_success) {
-        // 执行主板认证
-        g_authentication_success = motherboard_authentication();
-        
-        if (!g_authentication_success) {
-            OutputDebugString(TEXT("[CefHook] 主板认证失败，不执行注入\n"));
-            return;
-        }
-    }
-
     // 将缓存的破解脚本转换为CEF字符串格式
     cef_string_t eval{};
     cef_string_t url{};
@@ -243,8 +351,13 @@ void CEF_CALLBACK hook_cef_on_load_end(
         g_first_injection = false;
     }
 
-    // 注入DeepSeek AI辅助脚本（如果已加载）
+    // 注入AI配置（config.json 中的 apiKey），再注入DeepSeek AI辅助脚本（如果已加载）
     if (frame->is_valid(frame) && !g_deepseek_ai_script_cached.empty()) {
+        string_t ai_config_prelude = BuildAIConfigPrelude();
+        cef_string_t config_eval{};
+        func_cef_string_from_ptr(ai_config_prelude.c_str(), ai_config_prelude.length(), &config_eval);
+        frame->execute_java_script(frame, &config_eval, &url, 0);
+
         cef_string_t deepseek_eval{};
         func_cef_string_from_ptr(g_deepseek_ai_script_cached.c_str(), g_deepseek_ai_script_cached.length(), &deepseek_eval);
         frame->execute_java_script(frame, &deepseek_eval, &url, 0);
@@ -378,94 +491,4 @@ DWORD WINAPI ThreadProc(LPVOID lpThreadParameter)
     }
     
     return 0;
-}
-// 简单的XOR解密函数
-std::string simple_decrypt(const std::string& encrypted_hex) {
-    // 从十六进制转换回字符
-    std::string encrypted;
-    for (size_t i = 0; i < encrypted_hex.length(); i += 2) {
-        std::string hex_char = encrypted_hex.substr(i, 2);
-        char c = static_cast<char>(std::stoi(hex_char, nullptr, 16));
-        encrypted += c;
-    }
-    
-    // 解密
-    std::string decrypted;
-    for (size_t i = 0; i < encrypted.length(); i++) {
-        char key_char = g_key[i % g_key.length()];
-        char decrypted_char = encrypted[i] ^ key_char;
-        decrypted += decrypted_char;
-    }
-    
-    return decrypted;
-}
-
-// 获取主板序列号的函数
-std::string get_motherboard_address() {
-    std::string motherboard_address = "";
-    
-    // 方法1: 首选使用PowerShell获取主板序列号
-    FILE* pipe = _popen("powershell -Command \"Get-WmiObject -Class Win32_BaseBoard | Select-Object -ExpandProperty SerialNumber\"", "r");
-    if (pipe != NULL) {
-        char buffer[128];
-        while (fgets(buffer, sizeof(buffer), pipe) != NULL) {
-            std::string line = buffer;
-            // 去除空白字符并检查有效性
-            line.erase(0, line.find_first_not_of(" \t\n\r"));
-            line.erase(line.find_last_not_of(" \t\n\r") + 1);
-            if (!line.empty() && line != "N/A" && line != "To Be Filled By O.E.M.") {
-                motherboard_address = line;
-                break;
-            }
-        }
-        _pclose(pipe);
-    }
-    
-    // 如果PowerShell方法失败，使用备用WMIC方法
-    if (motherboard_address.empty()) {
-        pipe = _popen("wmic baseboard get serialnumber", "r");
-        if (pipe != NULL) {
-            char buffer[128];
-            while (fgets(buffer, sizeof(buffer), pipe) != NULL) {
-                std::string line = buffer;
-                // 跳过标题行
-                if (line.find("SerialNumber") == std::string::npos && 
-                    line.find("\r\n") != 0 && !line.empty()) {
-                    // 去除空白字符并检查有效性
-                    line.erase(0, line.find_first_not_of(" \t\n\r"));
-                    line.erase(line.find_last_not_of(" \t\n\r") + 1);
-                    if (!line.empty() && line != "N/A" && line != "To Be Filled By O.E.M.") {
-                        motherboard_address = line;
-                        break;
-                    }
-                }
-            }
-            _pclose(pipe);
-        }
-    }
-    
-    return motherboard_address;
-}
-
-// 主板认证函数
-bool motherboard_authentication() {
-    // 获取当前主板物理地址（主板序列号或UUID）
-    std::string current_address = get_motherboard_address();
-    
-    if (current_address.empty()) {
-        OutputDebugString(TEXT("[CefHook] 无法获取主板物理地址\n"));
-        return false;
-    }
-    
-    // 解密存储的地址
-    std::string decrypted_address = simple_decrypt(g_encrypted_text);
-    
-    // 对比地址
-    if (current_address == decrypted_address) {
-        OutputDebugString(TEXT("[CefHook] 主板地址验证成功!\n"));
-        return true;
-    } else {
-        OutputDebugString(TEXT("[CefHook] 主板地址验证失败!\n"));
-        return false;
-    }
 }
